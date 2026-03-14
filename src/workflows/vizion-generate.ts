@@ -9,7 +9,6 @@ import { spektrumGenerateTool } from '../tools/spektrum.tools'
 
 export interface GenerateInput {
   pageId: string
-  databaseId: string
   proxyBaseUrl: string
   refineWebhookUrl: string
 }
@@ -54,7 +53,7 @@ const BuildSchema = z.object({
 })
 
 export async function runGenerateWorkflow(input: GenerateInput): Promise<GenerateOutput> {
-  const { pageId, databaseId, proxyBaseUrl, refineWebhookUrl } = input
+  const { pageId, proxyBaseUrl, refineWebhookUrl } = input
 
   // ── Agent 1: PageScannerAgent ─────────────────────────────────────
   console.log('[generate:1] scanning page for databases...')
@@ -76,16 +75,12 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
     `Scan the Notion page with ID: ${pageId}
 
     Use notion_get_page_content to retrieve all blocks.
-    Find ALL databases referenced on this page — the primary one is ${databaseId},
-    but there may be others embedded or linked on the same page.
+    Find ALL databases referenced on this page.
 
     Return the page title and a list of all database IDs and names found.`
   ) as z.infer<typeof PageScanSchema>
 
   const allDbs = scanResult.databases
-  if (!allDbs.find(db => db.id === databaseId)) {
-    allDbs.unshift({ id: databaseId, name: 'Primary Database' })
-  }
 
   console.log(`[generate:1] found ${allDbs.length} database(s): ${allDbs.map(d => d.name).join(', ')}`)
 
