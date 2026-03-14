@@ -19,9 +19,9 @@ export const spektrumGenerateTool: Tool = {
     },
     required: ['project_name', 'task_title', 'task_description'],
   },
-  async invoke({ project_name, task_title, task_description }) {
-    const { project } = await spektrum.createProject(project_name)
-    const { task } = await spektrum.createTask(project.id, task_title, task_description)
+  async invoke({ project_name, task_title, task_description }: any) {
+    const project = await spektrum.createProject(project_name)
+    const task = await spektrum.createTask(project.id, task_title, task_description)
     await spektrum.codeAndDeploy(task)
     const appUrl = await spektrum.getAppUrl(project.id)
     return { appUrl, projectId: project.id, taskId: task.id }
@@ -44,8 +44,8 @@ export const spektrumRefineTool: Tool = {
     },
     required: ['project_id', 'task_id', 'comment'],
   },
-  async invoke({ project_id, task_id, comment, author_id = 'vizion-user' }) {
-    const { task: updatedTask } = await spektrum.leaveComment(task_id, comment, author_id)
+  async invoke({ project_id, task_id, comment, author_id = 'vizion-user' }: any) {
+    const updatedTask = await spektrum.leaveComment(task_id, comment, author_id)
     await spektrum.codeAndDeploy(updatedTask)
     const appUrl = await spektrum.getAppUrl(project_id)
     return { appUrl }
