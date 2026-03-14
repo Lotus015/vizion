@@ -48,7 +48,7 @@ const MultiDBAnalysisSchema = z.object({
 const PromptSchema = z.object({ taskDescription: z.string() })
 
 const BuildSchema = z.object({
-  appUrl: z.string().url(),
+  appUrl: z.url(),
   projectId: z.string(),
   taskId: z.string(),
 })

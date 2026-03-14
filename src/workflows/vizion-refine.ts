@@ -17,7 +17,7 @@ const MetadataSchema = z.object({
   userComment: z.string().describe('The refinement request written by the user'),
 })
 
-const RefineResultSchema = z.object({ appUrl: z.string().url() })
+const RefineResultSchema = z.object({ appUrl: z.url() })
 
 export async function runRefineWorkflow(input: RefineInput): Promise<RefineOutput> {
   const { pageId } = input

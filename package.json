@@ -9,16 +9,16 @@
   },
   "dependencies": {
     "@mozaik-ai/core": "^0.8.4",
-    "@spektrum-ai/sdk": "^0.0.4",
     "@notionhq/client": "^2.2.15",
-    "express": "^4.18.0",
+    "@spektrum-ai/sdk": "^0.0.4",
     "dotenv": "^16.0.0",
-    "zod": "^3.22.0"
+    "express": "^4.18.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/express": "^4.17.0",
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "tsx": "^4.0.0"
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
   }
 }
