@@ -60,7 +60,7 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
   console.log('[generate:1] scanning page for databases...')
 
   const scannerAgent = new MozaikAgent({
-    model: 'claude-sonnet-4.5',
+    model: 'gpt-5-mini',
     tools: PAGE_SCAN_TOOLS,
     structuredOutput: PageScanSchema,
     messages: [{
@@ -93,7 +93,7 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
   console.log('[generate:2] analyzing databases...')
 
   const analystAgent = new MozaikAgent({
-    model: 'claude-sonnet-4.5',
+    model: 'gpt-5-mini',
     tools: DB_READ_TOOLS,
     structuredOutput: MultiDBAnalysisSchema,
     messages: [{
@@ -131,7 +131,7 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
   const unifiedDataUrl = `${proxyBaseUrl}/api/data?${allDbs.map(db => `databaseId=${db.id}`).join('&')}`
 
   const architectAgent = new MozaikAgent({
-    model: 'claude-sonnet-4.5',
+    model: 'gpt-5-mini',
     structuredOutput: PromptSchema,
     messages: [{
       role: 'system',
@@ -181,7 +181,7 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
     .toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 30)}-${Date.now()}`
 
   const builderAgent = new MozaikAgent({
-    model: 'claude-sonnet-4.5',
+    model: 'gpt-5-mini',
     tools: [spektrumGenerateTool],
     structuredOutput: BuildSchema,
     messages: [{
@@ -203,7 +203,7 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
   console.log('[generate:5] embedding into Notion...')
 
   const embedAgent = new MozaikAgent({
-    model: 'claude-sonnet-4.5',
+    model: 'gpt-5-mini',
     tools: EMBED_WRITE_TOOLS,
     messages: [{
       role: 'system',

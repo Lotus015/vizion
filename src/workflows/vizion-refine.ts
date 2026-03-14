@@ -26,7 +26,7 @@ export async function runRefineWorkflow(input: RefineInput): Promise<RefineOutpu
   console.log('[refine:1] reading page for metadata and user comment...')
 
   const readerAgent = new MozaikAgent({
-    model: 'claude-sonnet-4.5',
+    model: 'gpt-5-mini',
     tools: PAGE_SCAN_TOOLS,
     structuredOutput: MetadataSchema,
     messages: [{
@@ -57,7 +57,7 @@ export async function runRefineWorkflow(input: RefineInput): Promise<RefineOutpu
   console.log('[refine:2] refining with Spektrum...')
 
   const refineAgent = new MozaikAgent({
-    model: 'claude-sonnet-4.5',
+    model: 'gpt-5-mini',
     tools: [spektrumRefineTool],
     structuredOutput: RefineResultSchema,
     messages: [{
@@ -80,7 +80,7 @@ export async function runRefineWorkflow(input: RefineInput): Promise<RefineOutpu
   console.log('[refine:3] updating embed in Notion...')
 
   const updateAgent = new MozaikAgent({
-    model: 'claude-sonnet-4.5',
+    model: 'gpt-5-mini',
     tools: EMBED_UPDATE_TOOLS,
     messages: [{
       role: 'system',
