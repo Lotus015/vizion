@@ -155,48 +155,39 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
   })
 
   const designRaw = await architectAgent.act(
-    `Write a concise Spektrum task description (under 2000 chars) for a dashboard.
+    `Write a CONCISE Spektrum task description (under 1500 chars) for a clean, focused dashboard.
 
     Dashboard: ${analysis.dashboardName}
     Databases: ${dbSummary}
     Relationships: ${analysis.relationships}
-    Visualizations: ${vizSummary}
 
-    ## Data connection — CRITICAL
-    ALL data MUST be fetched from these external URLs. Do NOT create local data files, mock data, or local API routes.
+    Pick the TOP 3-5 most impactful visualizations only. Less is more. Choose from:
+    ${vizSummary}
 
-    Primary data endpoint (REST): ${unifiedDataUrl}
-    Real-time SSE stream: ${sseStreamUrl}
-    Write endpoint: POST ${proxyBaseUrl}/api/data
+    ## Data — CRITICAL
+    ALL data comes from this REST endpoint (fetch on mount, then poll every 10s):
+    ${unifiedDataUrl}
 
-    Response format: { databases: { "<name>": { rows: [...], total: N, databaseId: "..." } }, lastUpdated: "ISO" }
+    Response: { databases: { "<name>": { rows: [...], total: N, databaseId: "..." } }, lastUpdated: "ISO" }
 
-    On mount, fetch data from the REST endpoint. Then connect EventSource to the SSE stream URL for real-time updates.
-    Each SSE "data" event is a JSON payload with the full database state. On SSE error, fall back to polling the REST endpoint every 30s.
+    Do NOT create local data files, mock data, or local API routes. Always fetch from the URL above.
+    Values can be string, number, boolean, null, or array — always use String(value ?? '') before .replace()/.toLowerCase(), and check null before accessing properties.
 
-    ## Inline editing (two-way sync)
-    Table cells for text, number, select, status, checkbox, and date fields should be editable inline.
-    On edit, POST to the write endpoint with: { databaseId, pageId: row.id, properties: { "FieldName": newValue } }
-    Use optimistic UI update — apply the change immediately, revert if the POST fails.
-    Show a subtle save indicator (brief green checkmark) on successful write.
+    ## Layout
+    - Single scrollable page, NO tabs or multi-page navigation
+    - Top row: 3-4 KPI cards (large numbers, short labels)
+    - Middle: 1-2 charts (Recharts) — pick the most insightful ones
+    - Bottom: one compact data table (max 8 columns, hide IDs)
+    - That's it. Do NOT add: maps, kanban boards, customer health tables, SLA gauges, verification tables, or duplicate views of the same data
 
-    ## Data handling
-    Row values can be any type: string, number, boolean, null, array, or object. Always use defensive access:
-    - Convert to string before calling .replace(), .toLowerCase(), etc.: String(value ?? '')
-    - Check for null/undefined before accessing properties
-    - Use Array.isArray() before .map() or .join()
-    - Treat all values as potentially missing — never assume a field exists
-
-    ## Visual design requirements
-    - Dark theme: deep navy/slate background (#0f172a), cards with subtle borders and glass-morphism (backdrop-blur, semi-transparent backgrounds)
-    - Accent colors: vibrant gradients (blue-purple, cyan-teal) for charts and highlights
-    - Typography: clean sans-serif, large KPI numbers, muted labels
-    - Cards with rounded corners (xl), subtle shadows, hover effects with smooth transitions
-    - Recharts with custom colors matching the dark theme, no default gray grids
-    - Responsive: min 400px width, CSS grid auto-fit for card layout
-    - Smooth loading skeleton with pulse animation (not spinner)
-    - No fixed heights, content-driven sizing
-    - "Last updated" timestamp with relative time (e.g. "3s ago") that ticks live`
+    ## Style
+    - Dark theme: background #0f172a, cards with rgba(255,255,255,0.05) bg and border rgba(255,255,255,0.1)
+    - Accent: cyan (#06b6d4) and purple (#8b5cf6) for charts
+    - Large bold KPI numbers, small muted labels in gray-400
+    - Rounded-xl cards, clean spacing, no clutter
+    - Responsive CSS grid, min 400px width
+    - Loading skeleton with pulse animation
+    - Show "Updated X ago" that ticks live`
   )
 
   const design = parseAgentResult<z.infer<typeof PromptSchema>>(designRaw)
