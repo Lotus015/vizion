@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { MozaikAgent } from '@mozaik-ai/core'
 import {
-  PAGE_SCAN_TOOLS,
+  notionGetPageContentTool,
   notionRetrieveDatabaseTool,
   notionQueryDatabaseTool,
   notionAppendDashboardTool,
@@ -64,7 +64,7 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
 
   const scannerAgent = new MozaikAgent({
     model: 'gpt-5-mini',
-    tools: PAGE_SCAN_TOOLS,
+    tools: [notionGetPageContentTool],
     structuredOutput: PageScanSchema,
     messages: [{
       role: 'system',

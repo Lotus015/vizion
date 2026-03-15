@@ -185,5 +185,3 @@ export const notionUpdateEmbedTool: Tool = {
   },
 }
 
-// Tool groups for agent use
-export const PAGE_SCAN_TOOLS = [notionGetPageContentTool]

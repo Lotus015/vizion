@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { MozaikAgent } from '@mozaik-ai/core'
-import { PAGE_SCAN_TOOLS, notionUpdateEmbedTool } from '../tools/notion-mcp.tools'
+import { notionGetPageContentTool, notionUpdateEmbedTool } from '../tools/notion-mcp.tools'
 import { spektrumRefineTool } from '../tools/spektrum.tools'
 
 export interface RefineInput {
@@ -34,7 +34,7 @@ export async function runRefineWorkflow(input: RefineInput): Promise<RefineOutpu
 
   const readerAgent = new MozaikAgent({
     model: 'gpt-5-mini',
-    tools: PAGE_SCAN_TOOLS,
+    tools: [notionGetPageContentTool],
     structuredOutput: MetadataSchema,
     messages: [{
       role: 'system',
