@@ -34,6 +34,40 @@ export async function notifyUser(pageId: string, userId: string, message: string
   })
 }
 
+/** Retrieve database schema (MCP data_source endpoints are broken — issue #218) */
+export async function retrieveDatabaseSchema(databaseId: string) {
+  const n = notion()
+  const id = cleanId(databaseId)
+  const db = await n.databases.retrieve({ database_id: id })
+  const columns: Record<string, any> = {}
+  for (const [name, prop] of Object.entries(db.properties)) {
+    const p = prop as any
+    columns[name] = {
+      type: p.type,
+      options: ['select', 'multi_select', 'status'].includes(p.type)
+        ? (p[p.type]?.options ?? []).map((o: any) => o.name)
+        : undefined,
+    }
+  }
+  return {
+    database_id: databaseId,
+    name: (db as any).title?.[0]?.plain_text ?? 'Untitled',
+    columns,
+  }
+}
+
+/** Query database rows (MCP data_source endpoints are broken — issue #218) */
+export async function queryDatabase(databaseId: string, pageSize = 30) {
+  const n = notion()
+  const id = cleanId(databaseId)
+  const result = await n.databases.query({
+    database_id: id,
+    page_size: Math.min(pageSize, 100),
+  })
+  const { normalizeRows } = await import('./normalize')
+  return { rows: normalizeRows(result.results), total: result.results.length }
+}
+
 /** Find the embed block on a page and update its URL */
 export async function updateEmbed(pageId: string, newAppUrl: string) {
   const n = notion()

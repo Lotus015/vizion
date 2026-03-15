@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { MozaikAgent } from '@mozaik-ai/core'
 import { parseAgentResult } from '../mozaik/helpers'
 import { getNotionMcpTools, getNotionMcpTool } from '../notion/mcp'
-import { notifyUser } from '../notion/api'
+import { notifyUser, retrieveDatabaseSchema, queryDatabase } from '../notion/api'
 import { spektrumGenerateTool } from '../spektrum/client'
 import { registerDashboard } from '../lib/dashboard-registry'
 
@@ -92,13 +92,11 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
   // ── Step 2: Fetch schemas and data (MCP direct calls) ───────────────
   console.log('[generate:2] fetching database schemas and data...')
 
-  const retrieveDb = await getNotionMcpTool('API-retrieve-a-data-source')
-  const queryDb = await getNotionMcpTool('API-query-data-source')
-
+  // Direct API calls — MCP data_source endpoints return 404 (known issue #218)
   const dbData = await Promise.all(
     allDbs.map(async (db) => {
-      const schema = await retrieveDb.invoke({ data_source_id: db.id })
-      const data = await queryDb.invoke({ data_source_id: db.id, page_size: 30 })
+      const schema = await retrieveDatabaseSchema(db.id)
+      const data = await queryDatabase(db.id, 30)
       return { ...db, schema, data }
     })
   )
