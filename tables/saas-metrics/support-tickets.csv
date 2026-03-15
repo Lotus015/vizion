@@ -1,0 +1,21 @@
+Title,Customer,Priority,Status,Created,Resolved,CSAT Score
+Login fails after SSO update,Acme Corp,P1,Resolved,2026-03-01,2026-03-01,5
+Dashboard loading slow,TechFlow GmbH,P2,Resolved,2026-03-02,2026-03-03,4
+Cannot export CSV,Sakura Digital,P3,Resolved,2026-03-03,2026-03-05,4
+API rate limit too low,NovaLabs,P2,In Progress,2026-03-04,,
+Billing invoice missing,Orbital Systems,P3,Resolved,2026-03-05,2026-03-06,5
+SSO SAML config broken,BrightPath Education,P1,In Progress,2026-03-06,,
+Mobile app crashes on Android,CloudNest,P2,Resolved,2026-03-07,2026-03-08,3
+Custom field not saving,Zenith AI,P3,Open,2026-03-08,,
+Webhook delivery delays,MegaDrive,P1,In Progress,2026-03-09,,
+Password reset email not sent,PixelForge,P2,Resolved,2026-03-09,2026-03-10,5
+Two-factor auth locked out,RapidStack,P1,Resolved,2026-03-10,2026-03-10,4
+Report PDF formatting broken,Horizon Fintech,P3,Open,2026-03-11,,
+Search not returning results,ClearView Analytics,P2,Resolved,2026-03-11,2026-03-12,4
+Permission denied on admin page,SkyBridge IO,P2,Open,2026-03-12,,
+Data sync lag between workspaces,Acme Corp,P1,In Progress,2026-03-13,,
+Cannot add team members,Zenith AI,P3,Resolved,2026-03-13,2026-03-14,5
+Notification emails going to spam,TechFlow GmbH,P3,Open,2026-03-14,,
+Chart rendering blank on Firefox,NovaLabs,P2,Open,2026-03-14,,
+Integrations page 500 error,BrightPath Education,P1,In Progress,2026-03-15,,
+Audit log missing entries,MegaDrive,P2,Open,2026-03-15,,

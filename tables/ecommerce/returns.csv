@@ -1,0 +1,9 @@
+Order Date,Customer,Product,Reason,Refund Amount,Return Date,Status
+2026-02-15,Sarah Chen,4K Webcam Pro,Defective - blurry image,79.99,2026-02-20,Refunded
+2026-02-18,Tom Williams,Wireless Charging Pad,Not compatible with phone,29.99,2026-02-25,Refunded
+2026-02-22,Maria Garcia,Smart LED Desk Lamp,Flickering light,59.99,2026-02-28,Refunded
+2026-03-01,Lars Eriksson,Laptop Stand Aluminum,Wrong size,39.99,2026-03-05,Refunded
+2026-03-03,Yuki Tanaka,Noise-Cancelling Earbuds,Poor noise cancellation,149.99,2026-03-08,Processing
+2026-03-05,James Lee,Thunderbolt Cable 2m,DOA - not recognized,34.99,2026-03-10,Processing
+2026-03-09,David Kim,Mesh Wi-Fi Router System,Frequent disconnects,249.99,2026-03-13,Received
+2026-03-12,Emma Brown,Smart Power Strip,Overheating,44.99,2026-03-15,Received
