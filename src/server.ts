@@ -3,6 +3,7 @@ import 'dotenv/config'
 import { generateRoute } from './routes/generate'
 import { refineRoute } from './routes/refine'
 import { dataRoute } from './routes/data'
+import { dataStreamRoute } from './routes/data-stream'
 
 const app = express()
 app.use(express.json())
@@ -10,6 +11,7 @@ app.use(express.json())
 app.post('/api/generate', generateRoute)
 app.post('/api/refine', refineRoute)
 app.get('/api/data', dataRoute)
+app.get('/api/data/stream', dataStreamRoute)
 app.options('/api/data', (_req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS')

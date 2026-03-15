@@ -131,7 +131,9 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
   // ── Agent 3: Write Spektrum task description ────────────────────────
   console.log('[generate:3] designing dashboard spec...')
 
-  const unifiedDataUrl = `${proxyBaseUrl}/api/data?${allDbs.map(db => `databaseId=${db.id}`).join('&')}`
+  const dbQuery = allDbs.map(db => `databaseId=${db.id}`).join('&')
+  const unifiedDataUrl = `${proxyBaseUrl}/api/data?${dbQuery}`
+  const sseStreamUrl = `${proxyBaseUrl}/api/data/stream?${dbQuery}`
 
   const vizSummary = (analysis.recommendedVisualizations ?? [])
     .map(v => `- ${v.title} (${v.type}): ${v.description.slice(0, 100)}`)
@@ -160,10 +162,24 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
     Relationships: ${analysis.relationships}
     Visualizations: ${vizSummary}
 
-    Data endpoint: ${unifiedDataUrl}
-    Response: { databases: { "<name>": { rows: [...], total: N } }, lastUpdated: "ISO" }
+    ## Data connection
+    Real-time SSE stream: ${sseStreamUrl}
+    Fallback REST endpoint: ${unifiedDataUrl}
+    Response format: { databases: { "<name>": { rows: [...], total: N } }, lastUpdated: "ISO" }
 
-    Requirements: Recharts, Tailwind, responsive (400px min), poll every 30s, loading skeleton, no fixed heights.`
+    Use EventSource to connect to the SSE stream URL. Each "data" event is a JSON payload with the full database state.
+    On error or disconnect, fall back to polling the REST endpoint every 30s.
+
+    ## Visual design requirements
+    - Dark theme: deep navy/slate background (#0f172a), cards with subtle borders and glass-morphism (backdrop-blur, semi-transparent backgrounds)
+    - Accent colors: vibrant gradients (blue-purple, cyan-teal) for charts and highlights
+    - Typography: clean sans-serif, large KPI numbers, muted labels
+    - Cards with rounded corners (xl), subtle shadows, hover effects with smooth transitions
+    - Recharts with custom colors matching the dark theme, no default gray grids
+    - Responsive: min 400px width, CSS grid auto-fit for card layout
+    - Smooth loading skeleton with pulse animation (not spinner)
+    - No fixed heights, content-driven sizing
+    - "Last updated" timestamp with relative time (e.g. "3s ago") that ticks live`
   )
 
   const design = parseAgentResult<z.infer<typeof PromptSchema>>(designRaw)
