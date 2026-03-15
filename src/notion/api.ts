@@ -68,6 +68,34 @@ export async function queryDatabase(databaseId: string, pageSize = 30) {
   return { rows: normalizeRows(result.results), total: result.results.length }
 }
 
+/** Update a row (page) in a Notion database */
+export async function updateDatabaseRow(
+  databaseId: string,
+  pageId: string,
+  properties: Record<string, any>,
+) {
+  const n = notion()
+  // Fetch schema to know property types
+  const db = await n.databases.retrieve({ database_id: cleanId(databaseId) })
+  const schema: Record<string, { type: string }> = {}
+  for (const [name, prop] of Object.entries(db.properties)) {
+    schema[name] = { type: (prop as any).type }
+  }
+
+  const { denormalizeProperties } = await import('./denormalize')
+  const notionProps = denormalizeProperties(properties, schema)
+
+  // Remove undefined entries (read-only properties)
+  for (const key of Object.keys(notionProps)) {
+    if (notionProps[key] === undefined) delete notionProps[key]
+  }
+
+  await n.pages.update({
+    page_id: cleanId(pageId),
+    properties: notionProps,
+  })
+}
+
 /** Find the embed block on a page and update its URL */
 export async function updateEmbed(pageId: string, newAppUrl: string) {
   const n = notion()

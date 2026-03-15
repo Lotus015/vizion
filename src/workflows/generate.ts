@@ -165,10 +165,17 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
     ## Data connection
     Real-time SSE stream: ${sseStreamUrl}
     Fallback REST endpoint: ${unifiedDataUrl}
-    Response format: { databases: { "<name>": { rows: [...], total: N } }, lastUpdated: "ISO" }
+    Write endpoint: POST ${proxyBaseUrl}/api/data
+    Response format: { databases: { "<name>": { rows: [...], total: N, databaseId: "..." } }, lastUpdated: "ISO" }
 
     Use EventSource to connect to the SSE stream URL. Each "data" event is a JSON payload with the full database state.
     On error or disconnect, fall back to polling the REST endpoint every 30s.
+
+    ## Inline editing (two-way sync)
+    Table cells for text, number, select, status, checkbox, and date fields should be editable inline.
+    On edit, POST to the write endpoint with: { databaseId, pageId: row.id, properties: { "FieldName": newValue } }
+    Use optimistic UI update — apply the change immediately, revert if the POST fails.
+    Show a subtle save indicator (brief green checkmark) on successful write.
 
     ## Visual design requirements
     - Dark theme: deep navy/slate background (#0f172a), cards with subtle borders and glass-morphism (backdrop-blur, semi-transparent backgrounds)
