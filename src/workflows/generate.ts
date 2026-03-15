@@ -92,7 +92,7 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
   // ── Step 2: Fetch schemas and data (MCP direct calls) ───────────────
   console.log('[generate:2] fetching database schemas and data...')
 
-  // Direct API calls — MCP data_source endpoints return 404 (known issue #218)
+  // Direct API calls — MCP data_source endpoints return 404 (known makenotion/notion-mcp-server#218)
   const dbData = await Promise.all(
     allDbs.map(async (db) => {
       const schema = await retrieveDatabaseSchema(db.id)

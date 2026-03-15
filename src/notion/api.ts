@@ -34,7 +34,7 @@ export async function notifyUser(pageId: string, userId: string, message: string
   })
 }
 
-/** Retrieve database schema (MCP data_source endpoints are broken — issue #218) */
+/** Retrieve database schema (MCP data_source endpoints are broken — makenotion/notion-mcp-server#218) */
 export async function retrieveDatabaseSchema(databaseId: string) {
   const n = notion()
   const id = cleanId(databaseId)
@@ -56,7 +56,7 @@ export async function retrieveDatabaseSchema(databaseId: string) {
   }
 }
 
-/** Query database rows (MCP data_source endpoints are broken — issue #218) */
+/** Query database rows (MCP data_source endpoints are broken — makenotion/notion-mcp-server#218) */
 export async function queryDatabase(databaseId: string, pageSize = 30) {
   const n = notion()
   const id = cleanId(databaseId)
