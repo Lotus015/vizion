@@ -57,6 +57,9 @@ export async function getNotionMcpTools(): Promise<Tool[]> {
   }))
 
   console.log(`[notion-mcp] loaded ${cachedTools.length} tools: ${cachedTools.map(t => t.name).join(', ')}`)
+  for (const t of cachedTools) {
+    console.log(`[notion-mcp] ${t.name} schema:`, JSON.stringify(t.schema))
+  }
   return cachedTools
 }
 
