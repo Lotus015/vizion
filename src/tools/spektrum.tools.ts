@@ -62,6 +62,7 @@ export const spektrumGenerateTool: Tool = {
   },
   async invoke({ owner, task_title, task_description }: { owner: string; task_title: string; task_description: string }) {
     const createResult = await spektrum.createProject(owner)
+    console.log('[spektrum] createProject response:', JSON.stringify(createResult))
     const projectId = createResult.id
     console.log('[spektrum] project:', projectId)
 
