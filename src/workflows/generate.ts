@@ -98,7 +98,7 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
   const dbData = await Promise.all(
     allDbs.map(async (db) => {
       const schema = await retrieveDb.invoke({ database_id: db.id })
-      const data = await queryDb.invoke({ database_id: db.id, page_size: 30 })
+      const data = await queryDb.invoke({ data_source_id: db.id, page_size: 30 })
       return { ...db, schema, data }
     })
   )
