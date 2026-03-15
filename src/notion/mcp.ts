@@ -19,10 +19,7 @@ async function getClient(): Promise<Client> {
     args: ['-y', '@notionhq/notion-mcp-server'],
     env: {
       ...process.env,
-      OPENAPI_MCP_HEADERS: JSON.stringify({
-        Authorization: `Bearer ${process.env.NOTION_API_KEY}`,
-        'Notion-Version': '2025-09-03',
-      }),
+      NOTION_TOKEN: process.env.NOTION_API_KEY,
     },
   })
 
