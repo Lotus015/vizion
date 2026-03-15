@@ -19,7 +19,7 @@ async function getClient(): Promise<Client> {
     args: ['-y', '@notionhq/notion-mcp-server'],
     env: {
       ...process.env,
-      NOTION_TOKEN: process.env.NOTION_API_KEY,
+      NOTION_TOKEN: process.env.NOTION_API_KEY!,
     },
   })
 
