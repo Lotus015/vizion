@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { runGenerateWorkflow } from '../workflows/vizion-generate'
+import { runGenerateWorkflow } from '../workflows/generate'
 
 export async function generateRoute(req: Request, res: Response) {
   const pageId = req.body?.data?.id

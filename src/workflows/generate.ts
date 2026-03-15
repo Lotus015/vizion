@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { MozaikAgent } from '@mozaik-ai/core'
-import { getNotionMcpTools, getNotionMcpTool } from '../lib/notion-mcp'
-import { spektrumGenerateTool } from '../tools/spektrum.tools'
+import { parseAgentResult } from '../mozaik/helpers'
+import { getNotionMcpTools, getNotionMcpTool } from '../notion/mcp'
+import { notifyUser } from '../notion/api'
+import { spektrumGenerateTool } from '../spektrum/client'
 import { registerDashboard } from '../lib/dashboard-registry'
-import { notifyUser } from '../lib/notion-api'
 
 export interface GenerateInput {
   pageId: string
@@ -17,15 +18,6 @@ export interface GenerateOutput {
   projectId: string
   taskId: string
   dashboardName: string
-}
-
-/** Mozaik act() returns { data, usage } — extract the data payload */
-function parseAgentResult<T>(raw: unknown): T {
-  const obj = raw as any
-  if (obj?.data != null) {
-    return typeof obj.data === 'string' ? JSON.parse(obj.data) as T : obj.data as T
-  }
-  return obj as T
 }
 
 const PageScanSchema = z.object({

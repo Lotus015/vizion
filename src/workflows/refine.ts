@@ -1,10 +1,10 @@
 import { z } from 'zod'
 import { MozaikAgent } from '@mozaik-ai/core'
-import { getNotionMcpTools } from '../lib/notion-mcp'
-import { updateEmbed } from '../lib/notion-api'
-import { spektrumRefineTool } from '../tools/spektrum.tools'
+import { parseAgentResult } from '../mozaik/helpers'
+import { getNotionMcpTools } from '../notion/mcp'
+import { updateEmbed, notifyUser } from '../notion/api'
+import { spektrumRefineTool } from '../spektrum/client'
 import { getDashboard } from '../lib/dashboard-registry'
-import { notifyUser } from '../lib/notion-api'
 
 export interface RefineInput {
   pageId: string
@@ -13,15 +13,6 @@ export interface RefineInput {
 
 export interface RefineOutput {
   appUrl: string
-}
-
-/** Mozaik act() returns { data, usage } — extract the data payload */
-function parseAgentResult<T>(raw: unknown): T {
-  const obj = raw as any
-  if (obj?.data != null) {
-    return typeof obj.data === 'string' ? JSON.parse(obj.data) as T : obj.data as T
-  }
-  return obj as T
 }
 
 const CommentSchema = z.object({

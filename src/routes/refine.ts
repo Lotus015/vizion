@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { runRefineWorkflow } from '../workflows/vizion-refine'
+import { runRefineWorkflow } from '../workflows/refine'
 
 export async function refineRoute(req: Request, res: Response) {
   const pageId = req.body?.data?.id
