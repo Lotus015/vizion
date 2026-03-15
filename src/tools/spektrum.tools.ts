@@ -1,5 +1,5 @@
 import { Tool } from '@mozaik-ai/core'
-import { SpektrumSDK } from '@spektrum-ai/sdk'
+import { SpektrumSDK, type Task } from '@spektrum-ai/sdk'
 
 const spektrum = new SpektrumSDK()
 
@@ -11,12 +11,13 @@ const POLL_INTERVAL_MS = 15_000 // 15 seconds
  * Spektrum finishes. This wrapper catches the timeout and polls
  * getAppUrl until the deploy completes.
  */
-async function codeAndDeployWithRetry(task: any, projectId: string): Promise<string> {
+async function codeAndDeployWithRetry(task: Task, projectId: string): Promise<string> {
   try {
     await spektrum.codeAndDeploy(task)
     return await spektrum.getAppUrl(projectId)
-  } catch (err: any) {
-    if (err.message?.includes('fetch failed') || err.message?.includes('timeout')) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : ''
+    if (message.includes('fetch failed') || message.includes('timeout')) {
       console.log('[spektrum] request timed out, polling for completion...')
       return pollForAppUrl(projectId)
     }
@@ -59,9 +60,9 @@ export const spektrumGenerateTool: Tool = {
     },
     required: ['owner', 'task_title', 'task_description'],
   },
-  async invoke({ owner, task_title, task_description }: any) {
+  async invoke({ owner, task_title, task_description }: { owner: string; task_title: string; task_description: string }) {
     const createResult = await spektrum.createProject(owner)
-    const projectId = createResult.project?.id ?? createResult.id
+    const projectId = createResult.id
     console.log('[spektrum] project:', projectId)
 
     const task = await spektrum.createTask(projectId, task_title, task_description)
@@ -88,7 +89,7 @@ export const spektrumRefineTool: Tool = {
     },
     required: ['project_id', 'task_id', 'comment'],
   },
-  async invoke({ project_id, task_id, comment, author_id = 'vizion-user' }: any) {
+  async invoke({ project_id, task_id, comment, author_id = 'vizion-user' }: { project_id: string; task_id: string; comment: string; author_id?: string }) {
     const task = await spektrum.leaveComment(task_id, comment, author_id)
 
     console.log('[spektrum] deploying refinement...')
