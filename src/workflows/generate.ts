@@ -180,6 +180,13 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
     Use optimistic UI update — apply the change immediately, revert if the POST fails.
     Show a subtle save indicator (brief green checkmark) on successful write.
 
+    ## Data handling
+    Row values can be any type: string, number, boolean, null, array, or object. Always use defensive access:
+    - Convert to string before calling .replace(), .toLowerCase(), etc.: String(value ?? '')
+    - Check for null/undefined before accessing properties
+    - Use Array.isArray() before .map() or .join()
+    - Treat all values as potentially missing — never assume a field exists
+
     ## Visual design requirements
     - Dark theme: deep navy/slate background (#0f172a), cards with subtle borders and glass-morphism (backdrop-blur, semi-transparent backgrounds)
     - Accent colors: vibrant gradients (blue-purple, cyan-teal) for charts and highlights
