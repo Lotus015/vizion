@@ -162,14 +162,17 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
     Relationships: ${analysis.relationships}
     Visualizations: ${vizSummary}
 
-    ## Data connection
+    ## Data connection — CRITICAL
+    ALL data MUST be fetched from these external URLs. Do NOT create local data files, mock data, or local API routes.
+
+    Primary data endpoint (REST): ${unifiedDataUrl}
     Real-time SSE stream: ${sseStreamUrl}
-    Fallback REST endpoint: ${unifiedDataUrl}
     Write endpoint: POST ${proxyBaseUrl}/api/data
+
     Response format: { databases: { "<name>": { rows: [...], total: N, databaseId: "..." } }, lastUpdated: "ISO" }
 
-    Use EventSource to connect to the SSE stream URL. Each "data" event is a JSON payload with the full database state.
-    On error or disconnect, fall back to polling the REST endpoint every 30s.
+    On mount, fetch data from the REST endpoint. Then connect EventSource to the SSE stream URL for real-time updates.
+    Each SSE "data" event is a JSON payload with the full database state. On SSE error, fall back to polling the REST endpoint every 30s.
 
     ## Inline editing (two-way sync)
     Table cells for text, number, select, status, checkbox, and date fields should be editable inline.
