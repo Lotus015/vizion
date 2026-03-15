@@ -9,8 +9,10 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "@mozaik-ai/core": "^0.8.4",
     "@notionhq/client": "^2.2.15",
+    "@notionhq/notion-mcp-server": "^2.2.1",
     "@spektrum-ai/sdk": "^0.0.4",
     "dotenv": "^16.0.0",
     "express": "^4.18.0",

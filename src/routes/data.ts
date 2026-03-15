@@ -1,8 +1,6 @@
 import { Request, Response } from 'express'
-import { Client } from '@notionhq/client'
+import { notion as getNotion } from '../lib/notion-api'
 import { normalizeRows } from '../lib/normalize'
-
-const notion = new Client({ auth: process.env.NOTION_API_KEY })
 
 export async function dataRoute(req: Request, res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -22,8 +20,8 @@ export async function dataRoute(req: Request, res: Response) {
     const results = await Promise.all(
       databaseIds.map(async (id) => {
         const [schema, rows] = await Promise.all([
-          notion.databases.retrieve({ database_id: id }),
-          notion.databases.query({ database_id: id, page_size: 100 }),
+          getNotion().databases.retrieve({ database_id: id }),
+          getNotion().databases.query({ database_id: id, page_size: 100 }),
         ])
         const name = (schema as any).title?.[0]?.plain_text ?? id
         return { id, name, rows: normalizeRows(rows.results), total: rows.results.length }
