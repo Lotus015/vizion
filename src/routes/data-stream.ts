@@ -48,13 +48,14 @@ export async function dataStreamRoute(req: Request, res: Response) {
         databases[r.name] = { rows: r.rows, total: r.total, databaseId: r.id }
       }
 
+      // Hash only the database content, not the timestamp
+      const dataHash = JSON.stringify(databases)
       const payload = { databases, lastUpdated: new Date().toISOString() }
-      const hash = JSON.stringify(payload)
 
-      // Only push if data changed
-      if (hash !== lastHash) {
-        lastHash = hash
-        res.write(`data: ${hash}\n\n`)
+      // Only push if actual data changed
+      if (dataHash !== lastHash) {
+        lastHash = dataHash
+        res.write(`data: ${JSON.stringify(payload)}\n\n`)
       }
     } catch (err: any) {
       res.write(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`)
