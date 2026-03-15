@@ -43,11 +43,15 @@ export async function getNotionMcpTools(): Promise<Tool[]> {
     description: mcp.description ?? '',
     schema: mcp.inputSchema as Record<string, any>,
     async invoke(args: any) {
+      console.log(`[notion-mcp] calling ${mcp.name} with:`, JSON.stringify(args))
       const result = await c.callTool({ name: mcp.name, arguments: args })
       const text = (result.content as any[])
         ?.filter((c) => c.type === 'text')
         .map((c) => c.text)
         .join('')
+      if (result.isError) {
+        console.error(`[notion-mcp] ${mcp.name} error:`, text)
+      }
       try {
         return JSON.parse(text || '{}')
       } catch {
