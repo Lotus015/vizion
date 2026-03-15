@@ -256,7 +256,7 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
   })
 
   // Store metadata in memory so refine workflow can look it up
-  registerDashboard(pageId, built.projectId, built.taskId)
+  registerDashboard(pageId, built.projectId, built.taskId, allDbs.map(db => db.id))
 
   // Notify user via Notion comment
   await notifyUser(pageId, userId, `Your dashboard "${analysis.dashboardName}" is ready! 🎉`)
