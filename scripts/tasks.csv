@@ -1,0 +1,16 @@
+Name,Project,Assignee,Status,Estimated Hours,Completed
+Design homepage mockup,Website Redesign,Sara Nikolic,Done,16,true
+Implement auth flow,Mobile App v2,Ana Petrovic,In Progress,24,false
+Write API docs,API Migration,Marko Jovic,Todo,8,false
+Setup CI/CD pipeline,Data Pipeline,Stefan Djordjevic,In Progress,12,false
+Create landing page,Marketing Portal,Jovana Ilic,Done,20,true
+Fix payment bug,Payment Integration,Luka Todorovic,In Progress,6,false
+Design dashboard UI,Customer Dashboard,Milica Kovac,Blocked,32,false
+Build search index,Analytics Platform,Aleksa Milic,In Progress,40,false
+Write onboarding copy,Onboarding Flow,Tamara Pavlovic,Done,10,true
+Security penetration test,Security Audit,Nikola Stankovic,Todo,24,false
+Implement chat backend,Chat Feature,Petar Radic,In Progress,36,false
+Mobile push notifications,Mobile App v2,Ana Petrovic,Todo,16,false
+Database schema migration,API Migration,Marko Jovic,Todo,12,false
+Design email templates,Marketing Portal,Maja Lazic,Done,8,true
+Performance optimization,Website Redesign,Stefan Djordjevic,In Progress,20,false

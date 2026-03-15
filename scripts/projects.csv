@@ -1,0 +1,13 @@
+Name,Status,Priority,Due Date,Budget
+Website Redesign,Active,High,2026-04-15,45000
+Mobile App v2,Active,High,2026-05-01,80000
+API Migration,Planning,Medium,2026-06-01,25000
+Marketing Portal,Done,Medium,2026-02-28,30000
+Data Pipeline,Active,High,2026-04-30,55000
+Customer Dashboard,Blocked,High,2026-03-31,40000
+Internal Wiki,Planning,Low,2026-07-15,10000
+Payment Integration,Active,High,2026-04-01,35000
+Analytics Platform,Active,Medium,2026-05-15,60000
+Onboarding Flow,Done,Medium,2026-03-01,20000
+Security Audit,Planning,High,2026-04-15,15000
+Chat Feature,Active,Medium,2026-05-30,50000

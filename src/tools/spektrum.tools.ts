@@ -3,51 +3,97 @@ import { SpektrumSDK } from '@spektrum-ai/sdk'
 
 const spektrum = new SpektrumSDK()
 
-// ── Tool 1: Generate (new project) ───────────────────────────────────
+const DEPLOY_TIMEOUT_MS = 10 * 60 * 1000 // 10 minutes
+const POLL_INTERVAL_MS = 15_000 // 15 seconds
+
+/**
+ * codeAndDeploy can take 5-6 minutes. Node fetch may timeout before
+ * Spektrum finishes. This wrapper catches the timeout and polls
+ * getAppUrl until the deploy completes.
+ */
+async function codeAndDeployWithRetry(task: any, projectId: string): Promise<string> {
+  try {
+    await spektrum.codeAndDeploy(task)
+    return await spektrum.getAppUrl(projectId)
+  } catch (err: any) {
+    if (err.message?.includes('fetch failed') || err.message?.includes('timeout')) {
+      console.log('[spektrum] request timed out, polling for completion...')
+      return pollForAppUrl(projectId)
+    }
+    throw err
+  }
+}
+
+async function pollForAppUrl(projectId: string): Promise<string> {
+  const start = Date.now()
+
+  while (Date.now() - start < DEPLOY_TIMEOUT_MS) {
+    await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
+
+    try {
+      const appUrl = await spektrum.getAppUrl(projectId)
+      if (appUrl) {
+        console.log(`[spektrum] deploy complete (${Math.round((Date.now() - start) / 1000)}s)`)
+        return appUrl
+      }
+    } catch {
+      // not ready yet
+    }
+
+    console.log(`[spektrum] waiting... (${Math.round((Date.now() - start) / 1000)}s)`)
+  }
+
+  throw new Error(`Deploy timed out after ${DEPLOY_TIMEOUT_MS / 1000}s`)
+}
+
+// ── Generate: create project, task, deploy ────────────────────────────
 export const spektrumGenerateTool: Tool = {
   name: 'spektrum_generate',
-  description:
-    'Creates a new Spektrum project, generates and deploys a React app. ' +
-    'Returns appUrl, projectId, and taskId. Store projectId and taskId — ' +
-    'they are needed for future refinements.',
+  description: 'Creates a Spektrum project, generates and deploys a React app.',
   schema: {
     type: 'object',
     properties: {
-      project_name: { type: 'string', description: 'Unique slug (lowercase, hyphens)' },
-      task_title: { type: 'string', description: 'Short title for the task' },
-      task_description: { type: 'string', description: 'Full dashboard specification' },
+      owner: { type: 'string', description: 'Owner identifier' },
+      task_title: { type: 'string', description: 'Short title' },
+      task_description: { type: 'string', description: 'Dashboard specification' },
     },
-    required: ['project_name', 'task_title', 'task_description'],
+    required: ['owner', 'task_title', 'task_description'],
   },
-  async invoke({ project_name, task_title, task_description }: any) {
-    const project = await spektrum.createProject(project_name)
-    const task = await spektrum.createTask(project.id, task_title, task_description)
-    await spektrum.codeAndDeploy(task)
-    const appUrl = await spektrum.getAppUrl(project.id)
-    return { appUrl, projectId: project.id, taskId: task.id }
+  async invoke({ owner, task_title, task_description }: any) {
+    const createResult = await spektrum.createProject(owner)
+    const projectId = createResult.project?.id ?? createResult.id
+    console.log('[spektrum] project:', projectId)
+
+    const task = await spektrum.createTask(projectId, task_title, task_description)
+    console.log('[spektrum] task:', task.id)
+
+    console.log('[spektrum] deploying (may take several minutes)...')
+    const appUrl = await codeAndDeployWithRetry(task, projectId)
+
+    return { appUrl, projectId, taskId: task.id }
   },
 }
 
-// ── Tool 2: Refine (iterate on existing) ─────────────────────────────
+// ── Refine: comment on task, redeploy ─────────────────────────────────
 export const spektrumRefineTool: Tool = {
   name: 'spektrum_refine',
-  description:
-    'Leaves a comment on an existing Spektrum task and re-deploys. ' +
-    'Use in the refine flow with the stored projectId and taskId.',
+  description: 'Leaves a comment on a Spektrum task and re-deploys.',
   schema: {
     type: 'object',
     properties: {
       project_id: { type: 'string' },
       task_id: { type: 'string' },
-      comment: { type: 'string', description: 'User feedback or change request' },
-      author_id: { type: 'string', description: 'Author identifier (e.g. page_id)' },
+      comment: { type: 'string', description: 'User feedback' },
+      author_id: { type: 'string', description: 'Author identifier' },
     },
     required: ['project_id', 'task_id', 'comment'],
   },
   async invoke({ project_id, task_id, comment, author_id = 'vizion-user' }: any) {
-    const updatedTask = await spektrum.leaveComment(task_id, comment, author_id)
-    await spektrum.codeAndDeploy(updatedTask)
-    const appUrl = await spektrum.getAppUrl(project_id)
+    const task = await spektrum.leaveComment(task_id, comment, author_id)
+
+    console.log('[spektrum] deploying refinement...')
+    const appUrl = await codeAndDeployWithRetry(task, project_id)
+
     return { appUrl }
   },
 }

@@ -8,11 +8,11 @@ export async function refineRoute(req: Request, res: Response) {
     return res.status(400).json({ error: 'Missing page_id', received: req.body })
   }
 
-  try {
-    const result = await runRefineWorkflow({ pageId })
-    return res.status(200).json({ ok: true, ...result })
-  } catch (err: any) {
-    console.error('[refine]', err.message)
-    return res.status(500).json({ error: err.message })
-  }
+  // Respond immediately so Notion doesn't timeout
+  res.status(202).json({ ok: true, message: 'Dashboard refinement started' })
+
+  // Run workflow in background
+  runRefineWorkflow({ pageId })
+    .then((result) => console.log('[refine] done:', result.appUrl))
+    .catch((err) => console.error('[refine] failed:', err.message, err.stack))
 }

@@ -5,7 +5,16 @@ function notion() {
   return new Client({ auth: process.env.NOTION_API_KEY })
 }
 
-// ── Tool 1: Retrieve Page + Block Children ────────────────────────────
+/** Normalize a Notion UUID — strip extra dashes that LLMs sometimes introduce */
+function cleanId(id: string): string {
+  const hex = id.replace(/-/g, '')
+  if (hex.length === 32) {
+    return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`
+  }
+  return id
+}
+
+// ── Retrieve Page + Block Children ────────────────────────────────────
 export const notionGetPageContentTool: Tool = {
   name: 'notion_get_page_content',
   description:
@@ -14,37 +23,34 @@ export const notionGetPageContentTool: Tool = {
     'metadata, and any text content written by the user.',
   schema: {
     type: 'object',
-    properties: {
-      page_id: { type: 'string' },
-    },
+    properties: { page_id: { type: 'string' } },
     required: ['page_id'],
   },
-  async invoke({ page_id }) {
+  async invoke({ page_id }: any) {
+    const id = cleanId(page_id)
     const n = notion()
     const [page, blocks] = await Promise.all([
-      n.pages.retrieve({ page_id }),
-      n.blocks.children.list({ block_id: page_id, page_size: 100 }),
+      n.pages.retrieve({ page_id: id }),
+      n.blocks.children.list({ block_id: id, page_size: 100 }),
     ])
     return { page, blocks: blocks.results }
   },
 }
 
-// ── Tool 2: Retrieve Database Schema ─────────────────────────────────
+// ── Retrieve Database Schema ──────────────────────────────────────────
 export const notionRetrieveDatabaseTool: Tool = {
   name: 'notion_retrieve_database',
   description:
-    'Retrieves schema of a Notion database: column names, types, options. ' +
-    'Use before querying rows to understand structure.',
+    'Retrieves schema of a Notion database: column names, types, options.',
   schema: {
     type: 'object',
-    properties: {
-      database_id: { type: 'string' },
-    },
+    properties: { database_id: { type: 'string' } },
     required: ['database_id'],
   },
-  async invoke({ database_id }) {
+  async invoke({ database_id }: any) {
+    const id = cleanId(database_id)
     const n = notion()
-    const db = await n.databases.retrieve({ database_id })
+    const db = await n.databases.retrieve({ database_id: id })
     const columns: Record<string, any> = {}
     for (const [name, prop] of Object.entries(db.properties)) {
       const p = prop as any
@@ -63,7 +69,7 @@ export const notionRetrieveDatabaseTool: Tool = {
   },
 }
 
-// ── Tool 3: Query Database Rows ───────────────────────────────────────
+// ── Query Database Rows ───────────────────────────────────────────────
 export const notionQueryDatabaseTool: Tool = {
   name: 'notion_query_database',
   description: 'Queries rows from a Notion database. Returns normalized flat objects.',
@@ -75,10 +81,11 @@ export const notionQueryDatabaseTool: Tool = {
     },
     required: ['database_id'],
   },
-  async invoke({ database_id, page_size = 30 }) {
+  async invoke({ database_id, page_size = 30 }: any) {
+    const id = cleanId(database_id)
     const n = notion()
     const result = await n.databases.query({
-      database_id,
+      database_id: id,
       page_size: Math.min(page_size, 100),
     })
     const { normalizeRows } = await import('../lib/normalize')
@@ -86,12 +93,10 @@ export const notionQueryDatabaseTool: Tool = {
   },
 }
 
-// ── Tool 4: Append Dashboard Blocks ──────────────────────────────────
+// ── Append Dashboard Blocks ───────────────────────────────────────────
 export const notionAppendDashboardTool: Tool = {
   name: 'notion_append_dashboard',
-  description:
-    'Appends dashboard embed, Refine button, and metadata to a Notion page. ' +
-    'Always call this after Spektrum deployment.',
+  description: 'Appends dashboard embed, Refine instructions, and metadata to a Notion page.',
   schema: {
     type: 'object',
     properties: {
@@ -104,10 +109,11 @@ export const notionAppendDashboardTool: Tool = {
     },
     required: ['page_id', 'app_url', 'dashboard_name', 'project_id', 'task_id', 'refine_webhook_url'],
   },
-  async invoke({ page_id, app_url, dashboard_name, project_id, task_id }) {
+  async invoke({ page_id, app_url, dashboard_name, project_id, task_id }: any) {
+    const id = cleanId(page_id)
     const n = notion()
     await n.blocks.children.append({
-      block_id: page_id,
+      block_id: id,
       children: [
         { type: 'divider', divider: {} } as any,
         {
@@ -131,10 +137,7 @@ export const notionAppendDashboardTool: Tool = {
           type: 'callout',
           callout: {
             icon: { type: 'emoji', emoji: '🔧' },
-            rich_text: [{
-              type: 'text',
-              text: { content: `vizion:${project_id}:${task_id}` },
-            }],
+            rich_text: [{ type: 'text', text: { content: `vizion:${project_id}:${task_id}` } }],
             color: 'gray_background',
           },
         } as any,
@@ -153,12 +156,10 @@ export const notionAppendDashboardTool: Tool = {
   },
 }
 
-// ── Tool 5: Update Embed Block URL ────────────────────────────────────
+// ── Update Embed Block URL ────────────────────────────────────────────
 export const notionUpdateEmbedTool: Tool = {
   name: 'notion_update_embed',
-  description:
-    'Finds the existing embed block on a page and updates its URL. ' +
-    'Use in the refine flow after a new app version is deployed.',
+  description: 'Finds the existing embed block on a page and updates its URL.',
   schema: {
     type: 'object',
     properties: {
@@ -167,9 +168,10 @@ export const notionUpdateEmbedTool: Tool = {
     },
     required: ['page_id', 'new_app_url'],
   },
-  async invoke({ page_id, new_app_url }) {
+  async invoke({ page_id, new_app_url }: any) {
+    const id = cleanId(page_id)
     const n = notion()
-    const blocks = await n.blocks.children.list({ block_id: page_id, page_size: 100 })
+    const blocks = await n.blocks.children.list({ block_id: id, page_size: 100 })
 
     const embedBlock = blocks.results.find((b: any) => b.type === 'embed')
     if (!embedBlock) throw new Error('No embed block found on page')
@@ -183,8 +185,5 @@ export const notionUpdateEmbedTool: Tool = {
   },
 }
 
-// Exports grouped by flow
+// Tool groups for agent use
 export const PAGE_SCAN_TOOLS = [notionGetPageContentTool]
-export const DB_READ_TOOLS = [notionRetrieveDatabaseTool, notionQueryDatabaseTool]
-export const EMBED_WRITE_TOOLS = [notionAppendDashboardTool]
-export const EMBED_UPDATE_TOOLS = [notionUpdateEmbedTool]

@@ -2,13 +2,15 @@ import { z } from 'zod'
 import { MozaikAgent } from '@mozaik-ai/core'
 import {
   PAGE_SCAN_TOOLS,
-  DB_READ_TOOLS,
-  EMBED_WRITE_TOOLS,
+  notionRetrieveDatabaseTool,
+  notionQueryDatabaseTool,
+  notionAppendDashboardTool,
 } from '../tools/notion-mcp.tools'
 import { spektrumGenerateTool } from '../tools/spektrum.tools'
 
 export interface GenerateInput {
   pageId: string
+  userId: string
   proxyBaseUrl: string
   refineWebhookUrl: string
 }
@@ -20,10 +22,18 @@ export interface GenerateOutput {
   dashboardName: string
 }
 
-const DatabaseRef = z.object({ id: z.string(), name: z.string() })
+/** Mozaik act() returns { data, usage } — extract the data payload */
+function parseAgentResult<T>(raw: unknown): T {
+  const obj = raw as any
+  if (obj?.data != null) {
+    return typeof obj.data === 'string' ? JSON.parse(obj.data) as T : obj.data as T
+  }
+  return obj as T
+}
 
 const PageScanSchema = z.object({
-  databases: z.array(DatabaseRef).describe('All Notion databases found on this page'),
+  databases: z.array(z.object({ id: z.string(), name: z.string() }))
+    .describe('All Notion databases found on this page'),
   pageTitle: z.string(),
 })
 
@@ -46,16 +56,10 @@ const MultiDBAnalysisSchema = z.object({
 
 const PromptSchema = z.object({ taskDescription: z.string() })
 
-const BuildSchema = z.object({
-  appUrl: z.url(),
-  projectId: z.string(),
-  taskId: z.string(),
-})
-
 export async function runGenerateWorkflow(input: GenerateInput): Promise<GenerateOutput> {
-  const { pageId, proxyBaseUrl, refineWebhookUrl } = input
+  const { pageId, userId, proxyBaseUrl, refineWebhookUrl } = input
 
-  // ── Agent 1: PageScannerAgent ─────────────────────────────────────
+  // ── Agent 1: Scan page for databases ────────────────────────────────
   console.log('[generate:1] scanning page for databases...')
 
   const scannerAgent = new MozaikAgent({
@@ -66,64 +70,83 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
       role: 'system',
       content:
         'You scan Notion pages to find all linked or embedded databases. ' +
-        'Look through block children for child_database blocks, linked_to_database ' +
-        'references, and any database view blocks.',
+        'Look through block children for child_database blocks.',
     }],
   })
 
-  const scanResult = await scannerAgent.act(
+  const scanRaw = await scannerAgent.act(
     `Scan the Notion page with ID: ${pageId}
 
     Use notion_get_page_content to retrieve all blocks.
     Find ALL databases referenced on this page.
 
-    Return the page title and a list of all database IDs and names found.`
-  ) as z.infer<typeof PageScanSchema>
+    Look for blocks with type "child_database" — each has an "id" field (the database ID)
+    and a "child_database.title" field (the database name).
 
-  const allDbs = scanResult.databases
+    IMPORTANT: You must return the block "id" as the database id. Do NOT return empty strings.
+
+    Return the page title and a list of all database IDs and names found.`
+  )
+
+  const scanResult = parseAgentResult<z.infer<typeof PageScanSchema>>(scanRaw)
+  const allDbs = (scanResult.databases ?? []).filter(db => db.id)
+
+  if (!allDbs.length) {
+    throw new Error('No databases found on page.')
+  }
 
   console.log(`[generate:1] found ${allDbs.length} database(s): ${allDbs.map(d => d.name).join(', ')}`)
 
-  // ── Agent 2: MultiDBAnalystAgent ──────────────────────────────────
+  // ── Step 2: Fetch schemas and data (direct calls) ───────────────────
+  console.log('[generate:2] fetching database schemas and data...')
+
+  const dbData = await Promise.all(
+    allDbs.map(async (db) => {
+      const schema = await notionRetrieveDatabaseTool.invoke({ database_id: db.id })
+      const data = await notionQueryDatabaseTool.invoke({ database_id: db.id, page_size: 30 })
+      return { ...db, schema, data }
+    })
+  )
+
+  // ── Agent 2: Analyze databases (no tools, data provided) ────────────
   console.log('[generate:2] analyzing databases...')
 
   const analystAgent = new MozaikAgent({
     model: 'gpt-5-mini',
-    tools: DB_READ_TOOLS,
     structuredOutput: MultiDBAnalysisSchema,
     messages: [{
       role: 'system',
       content:
-        'You are a data analyst who specializes in understanding relationships ' +
-        'between multiple Notion databases and designing dashboards that surface ' +
-        'insights that span across them. Always fetch both schema and sample data ' +
-        'before making recommendations.',
+        'You are a data analyst who understands relationships between databases ' +
+        'and recommends dashboard visualizations that span across them.',
     }],
   })
 
-  const analysis = await analystAgent.act(
-    `Analyze these Notion databases together:
-    ${JSON.stringify(allDbs, null, 2)}
+  const analysisRaw = await analystAgent.act(
+    `Analyze these Notion databases and recommend dashboard visualizations.
 
-    For each database:
-    1. Use notion_retrieve_database to get schema
-    2. Use notion_query_database to get sample data (30 rows each)
+    ${JSON.stringify(dbData, null, 2)}
 
-    Then:
-    - Identify how these databases relate to each other (shared fields, relations, etc.)
-    - Recommend the most insightful visualizations, especially ones that COMBINE
-      data from multiple databases
-    - Think beyond basic charts: if there's location data suggest a map,
-      if there's a workflow suggest a kanban, if there are time series suggest trends
-    - The best dashboards tell a story across all the data, not just one database`
-  ) as z.infer<typeof MultiDBAnalysisSchema>
+    - Identify how these databases relate to each other
+    - Recommend visualizations, especially cross-database ones
+    - Think beyond basic charts: maps for location data, kanban for workflows, trends for time series`
+  )
 
-  console.log(`[generate:2] done — ${analysis.recommendedVisualizations.length} visualizations planned`)
+  const analysis = parseAgentResult<z.infer<typeof MultiDBAnalysisSchema>>(analysisRaw)
+  console.log(`[generate:2] done — ${analysis.recommendedVisualizations?.length ?? 0} visualizations planned`)
 
-  // ── Agent 3: DashboardArchitectAgent ──────────────────────────────
+  // ── Agent 3: Write Spektrum task description ────────────────────────
   console.log('[generate:3] designing dashboard spec...')
 
   const unifiedDataUrl = `${proxyBaseUrl}/api/data?${allDbs.map(db => `databaseId=${db.id}`).join('&')}`
+
+  const vizSummary = (analysis.recommendedVisualizations ?? [])
+    .map(v => `- ${v.title} (${v.type}): ${v.description.slice(0, 100)}`)
+    .join('\n')
+
+  const dbSummary = analysis.databases
+    .map(db => `- ${db.name}: ${db.columnSummary}`)
+    .join('\n')
 
   const architectAgent = new MozaikAgent({
     model: 'gpt-5-mini',
@@ -131,92 +154,57 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
     messages: [{
       role: 'system',
       content:
-        'You write precise technical specifications for Spektrum, an AI React app generator. ' +
-        'Your output becomes the task_description sent to Spektrum API. ' +
-        'Be extremely specific about data sources, chart types, layout, and interactions.',
+        'You write CONCISE task descriptions for Spektrum, an AI React app generator. ' +
+        'Keep output under 2000 characters. Focus on WHAT to build, not HOW.',
     }],
   })
 
-  const design = await architectAgent.act(
-    `Write a complete Spektrum task description for this dashboard:
+  const designRaw = await architectAgent.act(
+    `Write a concise Spektrum task description (under 2000 chars) for a dashboard.
 
-    Analysis:
-    ${JSON.stringify(analysis, null, 2)}
+    Dashboard: ${analysis.dashboardName}
+    Databases: ${dbSummary}
+    Relationships: ${analysis.relationships}
+    Visualizations: ${vizSummary}
 
-    Data source (unified endpoint returning all databases):
-    ${unifiedDataUrl}
+    Data endpoint: ${unifiedDataUrl}
+    Response: { databases: { "<name>": { rows: [...], total: N } }, lastUpdated: "ISO" }
 
-    Response shape:
-    {
-      databases: {
-        "${allDbs[0]?.name}": { rows: Array<object>, total: number },
-        // ... one key per database, keyed by name
-      },
-      lastUpdated: string
-    }
+    Requirements: Recharts, Tailwind, responsive (400px min), poll every 30s, loading skeleton, no fixed heights.`
+  )
 
-    Requirements:
-    - Poll data every 30 seconds, show "Last updated X seconds ago"
-    - Use Recharts for charts, Tailwind CSS for styling
-    - Clean modern design — white cards, subtle shadows
-    - Fully responsive, works at 400px width (embedded in Notion iframe)
-    - No fixed heights (causes iframe scroll issues)
-    - Show loading skeleton on first load, friendly error state on failure
-    - Include filters and interactive elements where they add value
-    - The dashboard should tell a cohesive story across all the data
+  const design = parseAgentResult<z.infer<typeof PromptSchema>>(designRaw)
 
-    Emphasize cross-database visualizations — these are the most valuable
-    and don't exist anywhere else in the Notion ecosystem.`
-  ) as z.infer<typeof PromptSchema>
+  if (design.taskDescription.length > 3000) {
+    design.taskDescription = design.taskDescription.slice(0, 3000)
+  }
 
-  // ── Agent 4: SpektrumBuilderAgent ─────────────────────────────────
+  console.log(`[generate:3] spec ready (${design.taskDescription.length} chars)`)
+
+  // ── Step 4: Spektrum build (direct call) ────────────────────────────
   console.log('[generate:4] generating with Spektrum...')
 
-  const projectName = `vizion-${analysis.dashboardName
-    .toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').slice(0, 30)}-${Date.now()}`
-
-  const builderAgent = new MozaikAgent({
-    model: 'gpt-5-mini',
-    tools: [spektrumGenerateTool],
-    structuredOutput: BuildSchema,
-    messages: [{
-      role: 'system',
-      content: 'Call spektrum_generate once and return the result. Do not modify the task description.',
-    }],
-  })
-
-  const built = await builderAgent.act(
-    `Generate and deploy the dashboard.
-    project_name: ${projectName}
-    task_title: ${analysis.dashboardName}
-    task_description: ${design.taskDescription}`
-  ) as z.infer<typeof BuildSchema>
+  const built = await spektrumGenerateTool.invoke({
+    owner: userId,
+    task_title: analysis.dashboardName,
+    task_description: design.taskDescription,
+  }) as { appUrl: string; projectId: string; taskId: string }
 
   console.log(`[generate:4] deployed: ${built.appUrl}`)
 
-  // ── Agent 5: NotionEmbedAgent ─────────────────────────────────────
+  // ── Step 5: Embed into Notion (direct call) ─────────────────────────
   console.log('[generate:5] embedding into Notion...')
 
-  const embedAgent = new MozaikAgent({
-    model: 'gpt-5-mini',
-    tools: EMBED_WRITE_TOOLS,
-    messages: [{
-      role: 'system',
-      content: 'Call notion_append_dashboard with exact parameters. Do not improvise.',
-    }],
+  await notionAppendDashboardTool.invoke({
+    page_id: pageId,
+    app_url: built.appUrl,
+    dashboard_name: analysis.dashboardName,
+    project_id: built.projectId,
+    task_id: built.taskId,
+    refine_webhook_url: refineWebhookUrl,
   })
 
-  await embedAgent.act(
-    `Append the dashboard to the Notion page.
-    page_id: ${pageId}
-    app_url: ${built.appUrl}
-    dashboard_name: ${analysis.dashboardName}
-    project_id: ${built.projectId}
-    task_id: ${built.taskId}
-    refine_webhook_url: ${refineWebhookUrl}`
-  )
-
-  console.log('[generate:5] done')
+  console.log('[generate] complete:', built.appUrl)
 
   return {
     appUrl: built.appUrl,
