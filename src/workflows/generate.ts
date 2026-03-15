@@ -143,6 +143,12 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
     .map(db => `- ${db.name}: ${db.columnSummary}`)
     .join('\n')
 
+  // Build concrete data access examples with real database names
+  const dbNames = analysis.databases.map(db => db.name)
+  const dataAccessExample = dbNames.map(name =>
+    `const ${name.replace(/[^a-zA-Z0-9]/g, '_')} = data.databases["${name}"]?.rows ?? []`
+  ).join('\n    ')
+
   const architectAgent = new MozaikAgent({
     model: 'gpt-5-mini',
     structuredOutput: PromptSchema,
@@ -150,44 +156,44 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
       role: 'system',
       content:
         'You write CONCISE task descriptions for Spektrum, an AI React app generator. ' +
-        'Keep output under 2000 characters. Focus on WHAT to build, not HOW.',
+        'Keep output under 2500 characters. Be specific about data access patterns.',
     }],
   })
 
   const designRaw = await architectAgent.act(
-    `Write a CONCISE Spektrum task description (under 1500 chars) for a clean, focused dashboard.
+    `Write a Spektrum task description for a dashboard.
 
     Dashboard: ${analysis.dashboardName}
     Databases: ${dbSummary}
-    Relationships: ${analysis.relationships}
+    Visualizations to build: ${vizSummary}
 
-    Pick the TOP 3-5 most impactful visualizations only. Less is more. Choose from:
-    ${vizSummary}
+    ## How to fetch data
+    \`\`\`
+    const [data, setData] = useState(null)
+    useEffect(() => {
+      const load = () => fetch("${unifiedDataUrl}").then(r => r.json()).then(setData)
+      load()
+      const id = setInterval(load, 10000)
+      return () => clearInterval(id)
+    }, [])
+    // Access rows:
+    ${dataAccessExample}
+    \`\`\`
 
-    ## Data — CRITICAL
-    ALL data comes from this REST endpoint (fetch on mount, then poll every 10s):
-    ${unifiedDataUrl}
+    Each row is a flat object like { id, Name, Status, MRR, ... }. Values can be null — always guard: \`value ?? 0\`, \`String(value ?? "")\`.
 
-    Response: { databases: { "<name>": { rows: [...], total: N, databaseId: "..." } }, lastUpdated: "ISO" }
+    Do NOT create local data, mock data, or API routes. The URL above is the ONLY data source.
 
-    Do NOT create local data files, mock data, or local API routes. Always fetch from the URL above.
-    Values can be string, number, boolean, null, or array — always use String(value ?? '') before .replace()/.toLowerCase(), and check null before accessing properties.
-
-    ## Layout
-    - Single scrollable page, NO tabs or multi-page navigation
-    - Top row: 3-4 KPI cards (large numbers, short labels)
-    - Middle: 1-2 charts (Recharts) — pick the most insightful ones
-    - Bottom: one compact data table (max 8 columns, hide IDs)
-    - That's it. Do NOT add: maps, kanban boards, customer health tables, SLA gauges, verification tables, or duplicate views of the same data
+    ## What to build (pick 3-5 components max)
+    - 3-4 KPI cards at top (big number + label)
+    - 1-2 Recharts charts (bar, line, or pie)
+    - 1 compact table (hide id column, max 6 visible columns)
+    - Nothing else. No maps, kanban, health tables, or duplicate views.
 
     ## Style
-    - Dark theme: background #0f172a, cards with rgba(255,255,255,0.05) bg and border rgba(255,255,255,0.1)
-    - Accent: cyan (#06b6d4) and purple (#8b5cf6) for charts
-    - Large bold KPI numbers, small muted labels in gray-400
-    - Rounded-xl cards, clean spacing, no clutter
-    - Responsive CSS grid, min 400px width
-    - Loading skeleton with pulse animation
-    - Show "Updated X ago" that ticks live`
+    Dark theme (#0f172a bg), glass cards (rgba(255,255,255,0.05) bg, rgba(255,255,255,0.1) border, rounded-xl).
+    Chart colors: #06b6d4 (cyan), #8b5cf6 (purple), #10b981 (green). No gray grid lines.
+    Large bold KPI numbers, muted gray-400 labels. Responsive grid. "Updated Xs ago" live ticker.`
   )
 
   const design = parseAgentResult<z.infer<typeof PromptSchema>>(designRaw)
