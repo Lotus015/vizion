@@ -46,7 +46,7 @@ export async function runRefineWorkflow(input: RefineInput): Promise<RefineOutpu
 
   const readerAgent = new MozaikAgent({
     model: 'gpt-5-mini',
-    tools: notionTools.filter(t => t.name === 'retrieve-block-children'),
+    tools: notionTools.filter(t => t.name === 'API-get-block-children'),
     structuredOutput: CommentSchema,
     messages: [{
       role: 'system',
@@ -59,7 +59,7 @@ export async function runRefineWorkflow(input: RefineInput): Promise<RefineOutpu
   const commentRaw = await readerAgent.act(
     `Read the Notion page: ${pageId}
 
-    Use the retrieve-block-children tool with block_id="${pageId}" to get all blocks.
+    Use the API-get-block-children tool with block_id="${pageId}" to get all blocks.
 
     Find any paragraph text after the embed block — this is the user's refinement request.
     Return it as userComment.`

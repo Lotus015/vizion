@@ -64,7 +64,7 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
 
   const scannerAgent = new MozaikAgent({
     model: 'gpt-5-mini',
-    tools: notionTools.filter(t => t.name === 'retrieve-block-children'),
+    tools: notionTools.filter(t => t.name === 'API-get-block-children'),
     structuredOutput: PageScanSchema,
     messages: [{
       role: 'system',
@@ -77,7 +77,7 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
   const scanRaw = await scannerAgent.act(
     `Scan the Notion page with ID: ${pageId}
 
-    Use the retrieve-block-children tool with block_id="${pageId}" to get all blocks.
+    Use the API-get-block-children tool with block_id="${pageId}" to get all blocks.
     Find ALL databases referenced on this page.
 
     Look for blocks with type "child_database" — each has an "id" field (the database ID)
@@ -100,8 +100,8 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
   // ── Step 2: Fetch schemas and data (MCP direct calls) ───────────────
   console.log('[generate:2] fetching database schemas and data...')
 
-  const retrieveDb = await getNotionMcpTool('retrieve-a-database')
-  const queryDb = await getNotionMcpTool('query-data-source')
+  const retrieveDb = await getNotionMcpTool('API-retrieve-a-database')
+  const queryDb = await getNotionMcpTool('API-query-data-source')
 
   const dbData = await Promise.all(
     allDbs.map(async (db) => {
@@ -198,7 +198,7 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
   // ── Step 5: Embed into Notion (MCP call) ────────────────────────────
   console.log('[generate:5] embedding into Notion...')
 
-  const appendBlocks = await getNotionMcpTool('append-block-children')
+  const appendBlocks = await getNotionMcpTool('API-patch-block-children')
   await appendBlocks.invoke({
     block_id: pageId,
     children: [
