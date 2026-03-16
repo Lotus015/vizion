@@ -96,6 +96,34 @@ export async function updateDatabaseRow(
   })
 }
 
+/** Create a new row (page) in a Notion database */
+export async function createDatabaseRow(
+  databaseId: string,
+  properties: Record<string, any>,
+) {
+  const n = notion()
+  const dbId = cleanId(databaseId)
+  const db = await n.databases.retrieve({ database_id: dbId })
+  const schema: Record<string, { type: string }> = {}
+  for (const [name, prop] of Object.entries(db.properties)) {
+    schema[name] = { type: (prop as any).type }
+  }
+
+  const { denormalizeProperties } = await import('./denormalize')
+  const notionProps = denormalizeProperties(properties, schema)
+
+  for (const key of Object.keys(notionProps)) {
+    if (notionProps[key] === undefined) delete notionProps[key]
+  }
+
+  const page = await n.pages.create({
+    parent: { database_id: dbId },
+    properties: notionProps,
+  })
+
+  return { id: page.id }
+}
+
 /** Find the embed block on a page and update its URL */
 export async function updateEmbed(pageId: string, newAppUrl: string) {
   const n = notion()
