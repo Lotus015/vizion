@@ -190,10 +190,12 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
     - 1 compact table (hide id column, max 6 visible columns)
     - Nothing else. No maps, kanban, health tables, or duplicate views.
 
-    ## Style
-    Dark theme (#0f172a bg), glass cards (rgba(255,255,255,0.05) bg, rgba(255,255,255,0.1) border, rounded-xl).
-    Chart colors: #06b6d4 (cyan), #8b5cf6 (purple), #10b981 (green). No gray grid lines.
-    Large bold KPI numbers, muted gray-400 labels. Responsive grid. "Updated Xs ago" live ticker.`
+    ## Style — match Notion's visual identity
+    Light clean theme like Notion. Background: #ffffff. Cards: white bg, 1px solid #e5e5e5 border, rounded-lg, subtle shadow-sm.
+    Typography: font-family system-ui/-apple-system. Headings: #37352f bold. Body text: #37352f. Muted labels: #9b9a97.
+    Chart colors: #2eaadc (blue), #6940a5 (purple), #4dab9a (green), #e9b949 (yellow), #e16259 (red) — Notion's palette.
+    KPI numbers: text-3xl font-bold #37352f. Labels: text-sm #9b9a97 uppercase tracking-wide.
+    Responsive grid, clean spacing (p-6 gap-4). No heavy shadows or gradients. "Updated Xs ago" live ticker.`
   )
 
   const design = parseAgentResult<z.infer<typeof PromptSchema>>(designRaw)

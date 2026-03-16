@@ -128,11 +128,12 @@ export async function runFormWorkflow(input: FormInput): Promise<FormOutput> {
     - Success screen after submission with confetti or checkmark animation
     - "Powered by vizion" footer link
 
-    ## Style
-    Dark theme (#0f172a bg), centered card (max-w-lg), glass effect (rgba(255,255,255,0.05) bg, border rgba(255,255,255,0.1)).
-    Accent: cyan (#06b6d4) for buttons and focus rings. Smooth transitions (300ms).
-    Large question text, clean input fields with bottom-border style.
-    Mobile-first, responsive.`
+    ## Style — match Notion's visual identity
+    Light clean theme like Notion. Background: #ffffff. Centered card (max-w-lg): white bg, 1px solid #e5e5e5 border, rounded-lg, shadow-sm.
+    Typography: system-ui/-apple-system. Headings: #37352f bold. Body: #37352f. Muted: #9b9a97.
+    Accent: #2eaadc (Notion blue) for buttons, focus rings, progress bar. Hover: #2496be.
+    Input fields: border-bottom 1px #e5e5e5, focus border-bottom #2eaadc. Clean, minimal, no heavy styling.
+    Smooth transitions (300ms). Mobile-first, responsive.`
   )
 
   const design = parseAgentResult<z.infer<typeof FormSpecSchema>>(designRaw)

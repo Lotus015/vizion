@@ -67,8 +67,14 @@ export async function runBuildWorkflow(input: BuildInput): Promise<BuildOutput> 
 - Use React, Tailwind CSS, Recharts (if charts needed)
 - If the app needs external data, fetch from: ${proxyBaseUrl}/api/data
 - If the app needs to submit data, POST to: ${proxyBaseUrl}/api/data/create with { databaseId, properties }
-- Dark theme (#0f172a bg) unless the description says otherwise
-- Mobile-responsive, clean modern design`
+- Mobile-responsive
+
+## Style — match Notion's visual identity
+Light clean theme like Notion. Background: #ffffff. Cards: white bg, 1px solid #e5e5e5 border, rounded-lg, shadow-sm.
+Typography: font-family system-ui/-apple-system. Headings: #37352f bold. Body: #37352f. Muted: #9b9a97.
+Accent color: #2eaadc (Notion blue). Buttons: bg #2eaadc text white rounded hover #2496be.
+Colors: #2eaadc (blue), #6940a5 (purple), #4dab9a (green), #e9b949 (yellow), #e16259 (red).
+Clean spacing, no heavy shadows or gradients. Minimal and elegant like Notion itself.`
 
   const built = await spektrumGenerateTool.invoke({
     owner: userId,
