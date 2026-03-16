@@ -7,6 +7,7 @@ import { dataRoute } from './routes/data'
 import { dataStreamRoute } from './routes/data-stream'
 import { dataWriteRoute } from './routes/data-write'
 import { dataCreateRoute } from './routes/data-create'
+import { buildRoute } from './routes/build'
 
 const app = express()
 app.use(express.json())
@@ -21,6 +22,7 @@ app.options('/api/data*', (_req, res) => {
 
 app.post('/api/generate', generateRoute)
 app.post('/api/generate-form', generateFormRoute)
+app.post('/api/build', buildRoute)
 app.post('/api/refine', refineRoute)
 app.get('/api/data', dataRoute)
 app.get('/api/data/stream', dataStreamRoute)
