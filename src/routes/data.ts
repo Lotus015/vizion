@@ -3,6 +3,11 @@ import { notion } from '../notion/api'
 import { normalizeRows } from '../notion/normalize'
 import { getAllDatabaseIds } from '../lib/dashboard-registry'
 
+/** Clean database name: "customers.csv" → "customers" */
+function cleanName(name: string): string {
+  return name.replace(/\.csv$/i, '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
+}
+
 export async function dataRoute(req: Request, res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Cache-Control', 'public, max-age=25')
@@ -35,15 +40,17 @@ export async function dataRoute(req: Request, res: Response) {
       })
     )
 
-    const databases: Record<string, any> = {}
+    // Simple flat format: { customers: [...rows], revenue: [...rows], _meta: { ... } }
+    const response: Record<string, any> = {}
     for (const r of results) {
-      databases[r.name] = { rows: r.rows, total: r.total, databaseId: r.id }
+      response[cleanName(r.name)] = r.rows
+    }
+    response._meta = {
+      lastUpdated: new Date().toISOString(),
+      databases: Object.fromEntries(results.map(r => [cleanName(r.name), { databaseId: r.id, total: r.total, originalName: r.name }])),
     }
 
-    return res.status(200).json({
-      databases,
-      lastUpdated: new Date().toISOString(),
-    })
+    return res.status(200).json(response)
   } catch (err: any) {
     return res.status(500).json({ error: err.message })
   }

@@ -5,6 +5,11 @@ import { getAllDatabaseIds } from '../lib/dashboard-registry'
 
 const POLL_INTERVAL_MS = 5_000 // poll Notion every 5 seconds
 
+/** Clean database name: "customers.csv" → "customers" */
+function cleanName(name: string): string {
+  return name.replace(/\.csv$/i, '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
+}
+
 export async function dataStreamRoute(req: Request, res: Response) {
   const raw = req.query.databaseId
   let databaseIds: string[] = Array.isArray(raw)
@@ -43,19 +48,23 @@ export async function dataStreamRoute(req: Request, res: Response) {
         })
       )
 
-      const databases: Record<string, any> = {}
+      // Simple flat format
+      const response: Record<string, any> = {}
       for (const r of results) {
-        databases[r.name] = { rows: r.rows, total: r.total, databaseId: r.id }
+        response[cleanName(r.name)] = r.rows
+      }
+      response._meta = {
+        lastUpdated: new Date().toISOString(),
+        databases: Object.fromEntries(results.map(r => [cleanName(r.name), { databaseId: r.id, total: r.total }])),
       }
 
-      // Hash only the database content, not the timestamp
-      const dataHash = JSON.stringify(databases)
-      const payload = { databases, lastUpdated: new Date().toISOString() }
+      // Hash only the data, not the timestamp
+      const dataHash = JSON.stringify(results.map(r => r.rows))
 
       // Only push if actual data changed
       if (dataHash !== lastHash) {
         lastHash = dataHash
-        res.write(`data: ${JSON.stringify(payload)}\n\n`)
+        res.write(`data: ${JSON.stringify(response)}\n\n`)
       }
     } catch (err: any) {
       res.write(`event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`)

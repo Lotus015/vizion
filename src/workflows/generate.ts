@@ -143,10 +143,11 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
     .map(db => `- ${db.name}: ${db.columnSummary}`)
     .join('\n')
 
-  // Build concrete data access examples with real database names
+  // Build concrete data access examples with clean names
   const dbNames = analysis.databases.map(db => db.name)
-  const dataAccessExample = dbNames.map(name =>
-    `const ${name.replace(/[^a-zA-Z0-9]/g, '_')} = data.databases["${name}"]?.rows ?? []`
+  const cleanNames = dbNames.map(name => name.replace(/\.csv$/i, '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase())
+  const dataAccessExample = cleanNames.map(name =>
+    `const ${name} = data?.${name} ?? []  // array of row objects`
   ).join('\n    ')
 
   const architectAgent = new MozaikAgent({
@@ -180,7 +181,8 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
     ${dataAccessExample}
     \`\`\`
 
-    Each row is a flat object like { id, Name, Status, MRR, ... }. Values can be null — always guard: \`value ?? 0\`, \`String(value ?? "")\`.
+    The response is a flat JSON object. Each key (${cleanNames.join(', ')}) is an array of row objects like { id, Name, Status, MRR, ... }.
+    There is also a _meta key with lastUpdated timestamp. Values can be null — always guard: \`value ?? 0\`, \`String(value ?? "")\`.
 
     Do NOT create local data, mock data, or API routes. The URL above is the ONLY data source.
 
