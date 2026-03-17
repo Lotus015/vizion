@@ -96,6 +96,55 @@ export async function updateDatabaseRow(
   })
 }
 
+/** Property type mapping for database creation */
+const PROPERTY_CREATORS: Record<string, (options?: string[]) => any> = {
+  title: () => ({ title: {} }),
+  rich_text: () => ({ rich_text: {} }),
+  number: () => ({ number: { format: 'number' } }),
+  select: (options) => ({ select: { options: (options ?? []).map(name => ({ name })) } }),
+  multi_select: (options) => ({ multi_select: { options: (options ?? []).map(name => ({ name })) } }),
+  email: () => ({ email: {} }),
+  url: () => ({ url: {} }),
+  phone_number: () => ({ phone_number: {} }),
+  checkbox: () => ({ checkbox: {} }),
+  date: () => ({ date: {} }),
+  status: (options) => ({ status: { options: (options ?? ['Not started', 'In progress', 'Done']).map(name => ({ name })) } }),
+}
+
+/** Create a new Notion database on a page */
+export async function createNotionDatabase(
+  pageId: string,
+  title: string,
+  columns: Array<{ name: string; type: string; options?: string[] }>,
+): Promise<{ databaseId: string; columns: Array<{ name: string; type: string }> }> {
+  const n = notion()
+  const properties: Record<string, any> = {}
+
+  for (const col of columns) {
+    const creator = PROPERTY_CREATORS[col.type]
+    if (creator) {
+      properties[col.name] = creator(col.options)
+    }
+  }
+
+  // Ensure there's exactly one title property
+  const hasTitle = columns.some(c => c.type === 'title')
+  if (!hasTitle && columns.length > 0) {
+    properties[columns[0].name] = { title: {} }
+  }
+
+  const db = await n.databases.create({
+    parent: { page_id: cleanId(pageId) },
+    title: [{ type: 'text', text: { content: title } }],
+    properties,
+  })
+
+  return {
+    databaseId: db.id,
+    columns: columns.map(c => ({ name: c.name, type: c.type })),
+  }
+}
+
 /** Create a new row (page) in a Notion database */
 export async function createDatabaseRow(
   databaseId: string,

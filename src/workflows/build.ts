@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { MozaikAgent } from '@mozaik-ai/core'
 import { parseAgentResult } from '../mozaik/helpers'
 import { getNotionMcpTools, getNotionMcpTool } from '../notion/mcp'
-import { notifyUser } from '../notion/api'
+import { notifyUser, createNotionDatabase } from '../notion/api'
 import { spektrumGenerateTool } from '../spektrum/client'
 
 export interface BuildInput {
@@ -20,6 +20,18 @@ export interface BuildOutput {
 const PageContentSchema = z.object({
   title: z.string(),
   content: z.string().describe('All text content from the page, concatenated'),
+})
+
+const DatabasePlanSchema = z.object({
+  needsDatabases: z.boolean().describe('Whether this app needs Notion databases for data storage'),
+  databases: z.array(z.object({
+    name: z.string().describe('Database name, e.g. "Leads", "Submissions"'),
+    columns: z.array(z.object({
+      name: z.string(),
+      type: z.enum(['title', 'rich_text', 'number', 'select', 'multi_select', 'email', 'url', 'phone_number', 'checkbox', 'date', 'status']),
+      options: z.array(z.string()).optional().describe('Options for select/multi_select/status fields'),
+    })),
+  })).describe('Databases to create. Empty array if needsDatabases is false.'),
 })
 
 export async function runBuildWorkflow(input: BuildInput): Promise<BuildOutput> {
@@ -57,16 +69,87 @@ export async function runBuildWorkflow(input: BuildInput): Promise<BuildOutput> 
     throw new Error('Page has no text content. Write a description of what you want to build.')
   }
 
-  // ── Step 2: Build with Spektrum ─────────────────────────────────────
-  console.log('[build:2] generating with Spektrum...')
+  // ── Step 2: Plan databases ──────────────────────────────────────────
+  console.log('[build:2] analyzing if databases are needed...')
 
-  // Pass page content directly as task description, with minimal framing
+  const plannerAgent = new MozaikAgent({
+    model: 'gpt-5-mini',
+    structuredOutput: DatabasePlanSchema,
+    messages: [{
+      role: 'system',
+      content:
+        'You analyze app descriptions and determine what Notion databases are needed. ' +
+        'For landing pages with email capture → create a Leads database. ' +
+        'For forms/surveys → create a Submissions database. ' +
+        'For trackers/boards → create appropriate databases. ' +
+        'For static pages, games, or tools that don\'t collect data → no databases needed. ' +
+        'Always include a "title" type column as the first column.',
+    }],
+  })
+
+  const planRaw = await plannerAgent.act(
+    `Analyze this app description and determine what Notion databases are needed:
+
+    Title: ${page.title}
+    Description: ${page.content}
+
+    If the app collects any user data (emails, form submissions, signups, feedback, etc.),
+    plan the databases with appropriate columns. Otherwise set needsDatabases to false.`
+  )
+
+  const plan = parseAgentResult<z.infer<typeof DatabasePlanSchema>>(planRaw)
+
+  // ── Step 3: Create databases if needed ──────────────────────────────
+  let dataIntegrationNotes = ''
+
+  if (plan.needsDatabases && plan.databases.length > 0) {
+    console.log(`[build:3] creating ${plan.databases.length} database(s)...`)
+
+    const createdDbs: Array<{ name: string; databaseId: string; columns: Array<{ name: string; type: string }> }> = []
+
+    for (const db of plan.databases) {
+      const result = await createNotionDatabase(pageId, db.name, db.columns)
+      createdDbs.push({ name: db.name, ...result })
+      console.log(`[build:3] created "${db.name}" → ${result.databaseId}`)
+    }
+
+    // Build integration instructions for Spektrum
+    const dbInstructions = createdDbs.map(db => {
+      const cols = db.columns.map(c => `${c.name} (${c.type})`).join(', ')
+      return `Database "${db.name}" (ID: ${db.databaseId}): columns: ${cols}
+To submit data to this database:
+\`\`\`
+fetch("${proxyBaseUrl}/api/data/create", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    databaseId: "${db.databaseId}",
+    properties: { ${db.columns.filter(c => c.type !== 'title').map(c => `"${c.name}": value`).join(', ')} }
+  })
+})
+\`\`\``
+    }).join('\n\n')
+
+    dataIntegrationNotes = `
+## Data integration — CRITICAL
+The following Notion databases have been created for this app. You MUST use them.
+Do NOT use mock endpoints, dummyjson.com, or local storage. Use the exact URLs and database IDs below.
+
+${dbInstructions}
+
+On successful submission, show a success message. Handle errors gracefully.`
+  } else {
+    console.log('[build:3] no databases needed, skipping')
+  }
+
+  // ── Step 4: Build with Spektrum ─────────────────────────────────────
+  console.log('[build:4] generating with Spektrum...')
+
   const taskDescription = `${page.content}
+${dataIntegrationNotes}
 
 ## Technical notes
 - Use React, Tailwind CSS, Recharts (if charts needed)
-- If the app needs external data, fetch from: ${proxyBaseUrl}/api/data
-- If the app needs to submit data, POST to: ${proxyBaseUrl}/api/data/create with { databaseId, properties }
 - Mobile-responsive
 
 ## Style — match Notion's visual identity
@@ -82,10 +165,10 @@ Clean spacing, no heavy shadows or gradients. Minimal and elegant like Notion it
     task_description: taskDescription.slice(0, 3000),
   }) as { appUrl: string; projectId: string; taskId: string }
 
-  console.log(`[build:2] deployed: ${built.appUrl}`)
+  console.log(`[build:4] deployed: ${built.appUrl}`)
 
-  // ── Step 3: Embed into Notion ───────────────────────────────────────
-  console.log('[build:3] embedding into Notion...')
+  // ── Step 5: Embed into Notion ───────────────────────────────────────
+  console.log('[build:5] embedding into Notion...')
 
   const appendBlocks = await getNotionMcpTool('API-patch-block-children')
   await appendBlocks.invoke({
