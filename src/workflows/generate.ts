@@ -164,27 +164,33 @@ export async function runGenerateWorkflow(input: GenerateInput): Promise<Generat
   const designRaw = await architectAgent.act(
     `Write a Spektrum task description for a dashboard.
 
+    DATA URL: ${unifiedDataUrl}
+    ^^^^ This is the ONLY data source. You MUST use this exact URL. Do NOT use dummyjson.com, jsonplaceholder, or any other URL.
+
     Dashboard: ${analysis.dashboardName}
     Databases: ${dbSummary}
     Visualizations to build: ${vizSummary}
 
-    ## How to fetch data
+    ## How to fetch data — MANDATORY, use this EXACT code
     \`\`\`
+    const DATA_URL = "${unifiedDataUrl}"
+
     const [data, setData] = useState(null)
     useEffect(() => {
-      const load = () => fetch("${unifiedDataUrl}").then(r => r.json()).then(setData)
+      const load = () => fetch(DATA_URL).then(r => r.json()).then(setData)
       load()
       const id = setInterval(load, 10000)
       return () => clearInterval(id)
     }, [])
-    // Access rows:
+    // Access rows — these are direct arrays on the response object:
     ${dataAccessExample}
     \`\`\`
 
-    The response is a flat JSON object. Each key (${cleanNames.join(', ')}) is an array of row objects like { id, Name, Status, MRR, ... }.
-    There is also a _meta key with lastUpdated timestamp. Values can be null — always guard: \`value ?? 0\`, \`String(value ?? "")\`.
+    The response is a FLAT JSON object like: { ${cleanNames.join(': [...], ')}: [...], _meta: { lastUpdated } }
+    Each key is an array of row objects like { id, Name, Status, MRR, ... }.
+    Values can be null — always guard: \`value ?? 0\`, \`String(value ?? "")\`.
 
-    Do NOT create local data, mock data, or API routes. The URL above is the ONLY data source.
+    IMPORTANT: Do NOT create mock data, dummy endpoints, local JSON, or placeholder URLs. The DATA_URL above returns real live data — use it exactly as shown.
 
     ## What to build (pick 3-5 components max)
     - 3-4 KPI cards at top (big number + label)
