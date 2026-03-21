@@ -29,7 +29,7 @@ const DatabasePlanSchema = z.object({
     columns: z.array(z.object({
       name: z.string(),
       type: z.enum(['title', 'rich_text', 'number', 'select', 'multi_select', 'email', 'url', 'phone_number', 'checkbox', 'date', 'status']),
-      options: z.array(z.string()).optional().describe('Options for select/multi_select/status fields'),
+      options: z.array(z.string()).nullable().describe('Options for select/multi_select/status fields, null if not applicable'),
     })),
   })).describe('Databases to create. Empty array if needsDatabases is false.'),
 })
@@ -108,7 +108,7 @@ export async function runBuildWorkflow(input: BuildInput): Promise<BuildOutput> 
     const createdDbs: Array<{ name: string; databaseId: string; columns: Array<{ name: string; type: string }> }> = []
 
     for (const db of plan.databases) {
-      const result = await createNotionDatabase(pageId, db.name, db.columns)
+      const result = await createNotionDatabase(pageId, db.name, db.columns.map(c => ({ ...c, options: c.options ?? undefined })))
       createdDbs.push({ name: db.name, ...result })
       console.log(`[build:3] created "${db.name}" → ${result.databaseId}`)
     }
