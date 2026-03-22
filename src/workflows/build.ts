@@ -114,30 +114,54 @@ export async function runBuildWorkflow(input: BuildInput): Promise<BuildOutput> 
     }
 
     // Build integration instructions for Spektrum
-    const dbInstructions = createdDbs.map(db => {
+    const dbIds = createdDbs.map(db => `databaseId=${db.databaseId}`).join('&')
+    const readUrl = `${proxyBaseUrl}/api/data?${dbIds}`
+    const createUrl = `${proxyBaseUrl}/api/data/create`
+
+    const dbSchemas = createdDbs.map(db => {
       const cols = db.columns.map(c => `${c.name} (${c.type})`).join(', ')
-      return `Database "${db.name}" (ID: ${db.databaseId}): columns: ${cols}
-To submit data to this database:
+      return `- "${db.name}" (ID: ${db.databaseId}): ${cols}`
+    }).join('\n')
+
+    const cleanNames = createdDbs.map(db =>
+      db.name.replace(/\.csv$/i, '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
+    )
+
+    dataIntegrationNotes = `
+## Data integration — MANDATORY (use these EXACT URLs, do NOT invent your own)
+
+Databases:
+${dbSchemas}
+
+### Reading data — use this EXACT code
 \`\`\`
-fetch("${proxyBaseUrl}/api/data/create", {
+const DATA_URL = "${readUrl}"
+const [data, setData] = useState(null)
+useEffect(() => {
+  const load = () => fetch(DATA_URL).then(r => r.json()).then(setData)
+  load()
+  const id = setInterval(load, 10000)
+  return () => clearInterval(id)
+}, [])
+// Access rows:
+${cleanNames.map(n => `const ${n} = data?.${n} ?? []`).join('\n')}
+\`\`\`
+
+### Creating rows — use this EXACT code
+\`\`\`
+await fetch("${createUrl}", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
-    databaseId: "${db.databaseId}",
-    properties: { ${db.columns.filter(c => c.type !== 'title').map(c => `"${c.name}": value`).join(', ')} }
+    databaseId: "<DATABASE_ID>",
+    properties: { "FieldName": value, ... }
   })
 })
-\`\`\``
-    }).join('\n\n')
+\`\`\`
 
-    dataIntegrationNotes = `
-## Data integration — CRITICAL
-The following Notion databases have been created for this app. You MUST use them.
-Do NOT use mock endpoints, dummyjson.com, or local storage. Use the exact URLs and database IDs below.
-
-${dbInstructions}
-
-On successful submission, show a success message. Handle errors gracefully.`
+CRITICAL: Do NOT create mock data, dummy APIs, local JSON, or placeholder URLs.
+The DATA_URL above returns real live data. Use it exactly as shown.
+On successful submission, show a success message and refresh data.`
   } else {
     console.log('[build:3] no databases needed, skipping')
   }
@@ -152,12 +176,17 @@ ${dataIntegrationNotes}
 - Use React, Tailwind CSS, Recharts (if charts needed)
 - Mobile-responsive
 
-## Style — match Notion's visual identity
-Light clean theme like Notion. Background: #ffffff. Cards: white bg, 1px solid #e5e5e5 border, rounded-lg, shadow-sm.
-Typography: font-family system-ui/-apple-system. Headings: #37352f bold. Body: #37352f. Muted: #9b9a97.
-Accent color: #2eaadc (Notion blue). Buttons: bg #2eaadc text white rounded hover #2496be.
-Colors: #2eaadc (blue), #6940a5 (purple), #4dab9a (green), #e9b949 (yellow), #e16259 (red).
-Clean spacing, no heavy shadows or gradients. Minimal and elegant like Notion itself.`
+## MANDATORY STYLE — Notion Light Theme (DO NOT use dark mode, dark backgrounds, or dark themes)
+Background: #ffffff ONLY. No dark mode. No gray/black backgrounds. No gradients.
+Cards/containers: background #ffffff, border 1px solid #e5e5e5, border-radius 8px, shadow-sm.
+Typography: font-family system-ui, -apple-system, sans-serif.
+  - Headings: color #37352f, font-weight bold
+  - Body text: color #37352f
+  - Muted/labels: color #9b9a97, text-sm, uppercase tracking-wide
+Accent color: #2eaadc (Notion blue). Buttons: bg #2eaadc, text white, rounded, hover #2496be.
+Chart palette: #2eaadc (blue), #6940a5 (purple), #4dab9a (green), #e9b949 (yellow), #e16259 (red).
+KPI numbers: text-3xl font-bold #37352f. Layout: responsive grid, padding p-6, gap gap-4.
+This is a HARD REQUIREMENT. The app MUST look like it belongs inside Notion.`
 
   const built = await spektrumGenerateTool.invoke({
     owner: userId,
