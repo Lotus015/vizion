@@ -127,13 +127,24 @@ export async function runBuildWorkflow(input: BuildInput): Promise<BuildOutput> 
       db.name.replace(/\.csv$/i, '').replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
     )
 
-    dataIntegrationNotes = `
-## Data integration — MANDATORY (use these EXACT URLs, do NOT invent your own)
+    const createExamples = createdDbs.map(db => {
+      const props = db.columns
+        .filter(c => c.type !== 'title')
+        .map(c => `"${c.name}": value`)
+        .join(', ')
+      const titleCol = db.columns.find(c => c.type === 'title')
+      const titleProp = titleCol ? `"${titleCol.name}": title, ` : ''
+      return `// Create row in "${db.name}":
+await fetch("${createUrl}", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ databaseId: "${db.databaseId}", properties: { ${titleProp}${props} } })
+})`
+    }).join('\n')
 
-Databases:
-${dbSchemas}
+    dataIntegrationNotes = `## Data integration — MANDATORY (use these EXACT URLs, do NOT invent endpoints)
 
-### Reading data — use this EXACT code
+### READ data — copy this exactly
 \`\`\`
 const DATA_URL = "${readUrl}"
 const [data, setData] = useState(null)
@@ -143,25 +154,15 @@ useEffect(() => {
   const id = setInterval(load, 10000)
   return () => clearInterval(id)
 }, [])
-// Access rows:
 ${cleanNames.map(n => `const ${n} = data?.${n} ?? []`).join('\n')}
 \`\`\`
 
-### Creating rows — use this EXACT code
+### WRITE data — copy this exactly
 \`\`\`
-await fetch("${createUrl}", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    databaseId: "<DATABASE_ID>",
-    properties: { "FieldName": value, ... }
-  })
-})
+${createExamples}
 \`\`\`
-
-CRITICAL: Do NOT create mock data, dummy APIs, local JSON, or placeholder URLs.
-The DATA_URL above returns real live data. Use it exactly as shown.
-On successful submission, show a success message and refresh data.`
+After successful write, call load() again to refresh. Show success feedback.
+Do NOT use mock data, dummy APIs, localStorage, or placeholder URLs.`
   } else {
     console.log('[build:3] no databases needed, skipping')
   }
@@ -169,24 +170,31 @@ On successful submission, show a success message and refresh data.`
   // ── Step 4: Build with Spektrum ─────────────────────────────────────
   console.log('[build:4] generating with Spektrum...')
 
-  const taskDescription = `${page.content}
-${dataIntegrationNotes}
+  // Data integration goes FIRST so it never gets truncated
+  const styleBlock = `## MANDATORY STYLE — Notion Light Theme (NO dark mode)
+bg #ffffff ONLY. Cards: bg white, border 1px solid #e5e5e5, rounded-lg, shadow-sm.
+Font: system-ui. Headings: #37352f bold. Body: #37352f. Muted: #9b9a97.
+Accent: #2eaadc. Buttons: bg #2eaadc text white. Charts: #2eaadc #6940a5 #4dab9a #e9b949 #e16259.
+NO dark backgrounds, NO gradients, NO dark themes. Must look like Notion.`
+
+  // Budget: data ~800 chars, style ~350 chars, tech ~100 chars = ~1250 reserved
+  const reservedLen = dataIntegrationNotes.length + styleBlock.length + 150
+  const maxContentLen = 3000 - reservedLen
+  const trimmedContent = page.content.length > maxContentLen
+    ? page.content.slice(0, maxContentLen) + '\n[...truncated]'
+    : page.content
+
+  const taskDescription = `${dataIntegrationNotes}
+
+## App description
+${trimmedContent}
 
 ## Technical notes
-- Use React, Tailwind CSS, Recharts (if charts needed)
-- Mobile-responsive
+React, Tailwind CSS, Recharts (if charts needed). Mobile-responsive.
 
-## MANDATORY STYLE — Notion Light Theme (DO NOT use dark mode, dark backgrounds, or dark themes)
-Background: #ffffff ONLY. No dark mode. No gray/black backgrounds. No gradients.
-Cards/containers: background #ffffff, border 1px solid #e5e5e5, border-radius 8px, shadow-sm.
-Typography: font-family system-ui, -apple-system, sans-serif.
-  - Headings: color #37352f, font-weight bold
-  - Body text: color #37352f
-  - Muted/labels: color #9b9a97, text-sm, uppercase tracking-wide
-Accent color: #2eaadc (Notion blue). Buttons: bg #2eaadc, text white, rounded, hover #2496be.
-Chart palette: #2eaadc (blue), #6940a5 (purple), #4dab9a (green), #e9b949 (yellow), #e16259 (red).
-KPI numbers: text-3xl font-bold #37352f. Layout: responsive grid, padding p-6, gap gap-4.
-This is a HARD REQUIREMENT. The app MUST look like it belongs inside Notion.`
+${styleBlock}`
+
+  console.log(`[build:4] task description: ${taskDescription.length} chars (content: ${trimmedContent.length}, data: ${dataIntegrationNotes.length})`)
 
   const built = await spektrumGenerateTool.invoke({
     owner: userId,
